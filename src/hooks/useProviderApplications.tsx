@@ -5,12 +5,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Database } from '@/integrations/supabase/types';
 
 type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
+type MissionProposal = Database['public']['Tables']['mission_proposals']['Row'];
 
-interface ApplicationWithRequest {
-  id: string;
-  request_id: string;
-  created_at: string;
-  status: string;
+interface ApplicationWithRequest extends MissionProposal {
   service_request: ServiceRequest;
 }
 
@@ -24,37 +21,35 @@ export function useProviderApplications() {
 
     const fetchApplications = async () => {
       try {
-        // Récupérer toutes les propositions acceptées (= candidatures)
+        console.log('🔍 Récupération des candidatures pour le prestataire:', user.id);
+        
+        // Récupérer toutes les propositions acceptées et confirmées
         const { data, error } = await supabase
           .from('mission_proposals')
           .select(`
-            id,
-            request_id,
-            created_at,
-            status,
+            *,
             service_request:service_requests(*)
           `)
           .eq('provider_id', user.id)
-          .eq('status', 'accepted')
+          .in('status', ['accepted', 'confirmed'])
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Erreur lors du chargement des candidatures:', error);
+          console.error('❌ Erreur lors du chargement des candidatures prestataire:', error);
           return;
         }
 
+        console.log('📊 Candidatures prestataire données brutes:', data);
+
         const applicationsWithRequest = (data || []).map(item => ({
-          id: item.id,
-          request_id: item.request_id,
-          created_at: item.created_at,
-          status: item.status,
+          ...item,
           service_request: item.service_request as ServiceRequest
         }));
 
         setApplications(applicationsWithRequest);
-        console.log('📋 Candidatures chargées:', applicationsWithRequest.length);
+        console.log('✅ Candidatures prestataire chargées:', applicationsWithRequest.length, applicationsWithRequest);
       } catch (error) {
-        console.error('Erreur:', error);
+        console.error('❌ Erreur:', error);
       } finally {
         setLoading(false);
       }
@@ -68,13 +63,15 @@ export function useProviderApplications() {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'mission_proposals',
           filter: `provider_id=eq.${user.id}`
         },
         async (payload) => {
-          if (payload.new.status === 'accepted') {
+          console.log('🔔 Changement temps réel mission_proposals prestataire:', payload);
+          
+          if (payload.eventType === 'UPDATE' && (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
             // Charger les détails de la mission
             const { data: requestData } = await supabase
               .from('service_requests')
@@ -84,28 +81,32 @@ export function useProviderApplications() {
 
             if (requestData) {
               const newApplication = {
-                id: payload.new.id,
-                request_id: payload.new.request_id,
-                created_at: payload.new.created_at,
-                status: payload.new.status,
+                ...payload.new,
                 service_request: requestData
               };
 
               setApplications(prev => {
                 const exists = prev.find(app => app.id === newApplication.id);
                 if (exists) {
+                  console.log('🔄 Mise à jour candidature prestataire existante');
                   return prev.map(app => app.id === newApplication.id ? newApplication : app);
                 } else {
+                  console.log('➕ Nouvelle candidature prestataire ajoutée');
                   return [newApplication, ...prev];
                 }
               });
+
+              console.log('🔔 Candidature prestataire mise à jour:', newApplication.service_request.title, 'Status:', newApplication.status);
             }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Status subscription candidatures prestataire:', status);
+      });
 
     return () => {
+      console.log('🔌 Fermeture subscription candidatures prestataire');
       supabase.removeChannel(channel);
     };
   }, [user]);

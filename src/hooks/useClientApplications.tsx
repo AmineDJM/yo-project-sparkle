@@ -23,22 +23,26 @@ export function useClientApplications() {
 
     const fetchApplications = async () => {
       try {
+        console.log('🔍 Récupération des candidatures pour le client:', user.id);
+        
         // Récupérer toutes les candidatures pour les missions du client
         const { data, error } = await supabase
           .from('mission_proposals')
           .select(`
             *,
-            service_request:service_requests(*),
-            provider:profiles(*)
+            service_request:service_requests!inner(*),
+            provider:profiles!mission_proposals_provider_id_fkey(*)
           `)
           .eq('service_requests.client_id', user.id)
-          .eq('status', 'accepted')
+          .in('status', ['accepted', 'confirmed'])
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Erreur lors du chargement des candidatures:', error);
+          console.error('❌ Erreur lors du chargement des candidatures:', error);
           return;
         }
+
+        console.log('📊 Données brutes reçues:', data);
 
         const applicationsWithDetails = (data || []).map(item => ({
           ...item,
@@ -47,9 +51,9 @@ export function useClientApplications() {
         }));
 
         setApplications(applicationsWithDetails);
-        console.log('📨 Candidatures client chargées:', applicationsWithDetails.length);
+        console.log('✅ Candidatures client chargées:', applicationsWithDetails.length, applicationsWithDetails);
       } catch (error) {
-        console.error('Erreur:', error);
+        console.error('❌ Erreur:', error);
       } finally {
         setLoading(false);
       }
@@ -63,22 +67,26 @@ export function useClientApplications() {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'mission_proposals'
         },
         async (payload) => {
-          if (payload.new.status === 'accepted') {
+          console.log('🔔 Changement en temps réel sur mission_proposals:', payload);
+          
+          if (payload.eventType === 'UPDATE' && (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
             // Charger les détails complets de la candidature
             const { data: fullData } = await supabase
               .from('mission_proposals')
               .select(`
                 *,
-                service_request:service_requests(*),
-                provider:profiles(*)
+                service_request:service_requests!inner(*),
+                provider:profiles!mission_proposals_provider_id_fkey(*)
               `)
               .eq('id', payload.new.id)
               .single();
+
+            console.log('📋 Détails candidature mise à jour:', fullData);
 
             if (fullData && fullData.service_request?.client_id === user.id) {
               const newApplication = {
@@ -90,26 +98,33 @@ export function useClientApplications() {
               setApplications(prev => {
                 const exists = prev.find(app => app.id === newApplication.id);
                 if (exists) {
+                  console.log('🔄 Mise à jour candidature existante');
                   return prev.map(app => app.id === newApplication.id ? newApplication : app);
                 } else {
+                  console.log('➕ Nouvelle candidature ajoutée');
                   return [newApplication, ...prev];
                 }
               });
 
-              console.log('🔔 Nouvelle candidature reçue:', newApplication.provider?.full_name);
+              console.log('🔔 Candidature mise à jour:', newApplication.provider?.full_name, 'Status:', newApplication.status);
             }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Status subscription candidatures:', status);
+      });
 
     return () => {
+      console.log('🔌 Fermeture subscription candidatures');
       supabase.removeChannel(channel);
     };
   }, [user]);
 
   const confirmProvider = async (applicationId: string) => {
     try {
+      console.log('✅ Confirmation du prestataire:', applicationId);
+      
       const { error } = await supabase
         .from('mission_proposals')
         .update({ status: 'confirmed' })
@@ -125,9 +140,9 @@ export function useClientApplications() {
         )
       );
 
-      console.log('✅ Prestataire confirmé');
+      console.log('✅ Prestataire confirmé avec succès');
     } catch (error) {
-      console.error('Erreur lors de la confirmation:', error);
+      console.error('❌ Erreur lors de la confirmation:', error);
     }
   };
 

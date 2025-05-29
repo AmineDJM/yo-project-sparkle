@@ -23,6 +23,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [receiverId, setReceiverId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const {
@@ -45,6 +46,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
 
   useEffect(() => {
     loadMessages();
+    loadReceiverId();
     
     const channel = supabase
       .channel(`mission-chat-${missionId}`)
@@ -58,15 +60,19 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         },
         (payload) => {
           const newMessage = payload.new as Message;
+          console.log('💬 Nouveau message reçu:', newMessage);
           // Filtrer les messages de signalisation WebRTC
           if (!newMessage.content?.startsWith('WEBRTC_SIGNAL:')) {
             setMessages(prev => [...prev, newMessage]);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Status subscription messages:', status);
+      });
 
     return () => {
+      console.log('🔌 Fermeture subscription messages');
       supabase.removeChannel(channel);
     };
   }, [missionId, user?.id]);
@@ -79,15 +85,62 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const loadReceiverId = async () => {
+    try {
+      console.log('🔍 Chargement du receiver ID pour mission:', missionId);
+      
+      // Récupérer les informations de la mission pour déterminer le receiver
+      const { data: missionData, error: missionError } = await supabase
+        .from('service_requests')
+        .select('client_id')
+        .eq('id', missionId)
+        .single();
+
+      if (missionError) {
+        console.error('❌ Erreur mission:', missionError);
+        return;
+      }
+
+      // Récupérer les informations de la proposition pour obtenir le provider_id
+      const { data: proposalData, error: proposalError } = await supabase
+        .from('mission_proposals')
+        .select('provider_id')
+        .eq('request_id', missionId)
+        .in('status', ['accepted', 'confirmed'])
+        .single();
+
+      if (proposalError) {
+        console.error('❌ Erreur proposition:', proposalError);
+        return;
+      }
+
+      // Déterminer le receiver_id selon le type d'utilisateur
+      const isClient = user?.id === missionData.client_id;
+      const targetReceiverId = isClient ? proposalData.provider_id : missionData.client_id;
+      
+      console.log('👤 Receiver ID déterminé:', targetReceiverId, 'User est client:', isClient);
+      setReceiverId(targetReceiverId);
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement du receiver:', error);
+    }
+  };
+
   const loadMessages = async () => {
     try {
+      console.log('💬 Chargement des messages pour mission:', missionId);
+      
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('request_id', missionId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur chargement messages:', error);
+        return;
+      }
+      
+      console.log('📨 Messages chargés:', data?.length || 0, data);
       
       // Filtrer les messages de signalisation WebRTC
       const filteredMessages = (data || []).filter(
@@ -95,62 +148,72 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
       );
       setMessages(filteredMessages);
     } catch (error) {
-      console.error('Erreur lors du chargement des messages:', error);
+      console.error('❌ Erreur lors du chargement des messages:', error);
     }
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !receiverId) {
+      console.log('❌ Impossible d\'envoyer le message - manque des données:', {
+        message: newMessage.trim(),
+        user: !!user,
+        receiverId: !!receiverId
+      });
+      return;
+    }
 
     try {
-      const { data: missionData } = await supabase
-        .from('service_requests')
-        .select('client_id')
-        .eq('id', missionId)
-        .single();
-
-      if (!missionData) return;
+      console.log('📤 Envoi du message:', {
+        request_id: missionId,
+        sender_id: user.id,
+        receiver_id: receiverId,
+        content: newMessage
+      });
 
       const { error } = await supabase
         .from('messages')
         .insert({
           request_id: missionId,
           sender_id: user.id,
-          receiver_id: missionData.client_id,
+          receiver_id: receiverId,
           content: newMessage
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur envoi message:', error);
+        return;
+      }
+      
+      console.log('✅ Message envoyé avec succès');
       setNewMessage('');
     } catch (error) {
-      console.error('Erreur lors de l\'envoi du message:', error);
+      console.error('❌ Erreur lors de l\'envoi du message:', error);
     }
   };
 
   const sendConfirmationRequest = async () => {
-    if (!user) return;
+    if (!user || !receiverId) return;
 
     try {
-      const { data: missionData } = await supabase
-        .from('service_requests')
-        .select('client_id')
-        .eq('id', missionId)
-        .single();
-
-      if (!missionData) return;
-
+      console.log('🤝 Envoi demande de confirmation');
+      
       const { error } = await supabase
         .from('messages')
         .insert({
           request_id: missionId,
           sender_id: user.id,
-          receiver_id: missionData.client_id,
+          receiver_id: receiverId,
           content: '🤝 Je confirme l\'intervention - Êtes-vous d\'accord pour valider cette mission ?'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur envoi confirmation:', error);
+        return;
+      }
+      
+      console.log('✅ Demande de confirmation envoyée');
     } catch (error) {
-      console.error('Erreur lors de l\'envoi de la confirmation:', error);
+      console.error('❌ Erreur lors de l\'envoi de la confirmation:', error);
     }
   };
 
@@ -294,6 +357,13 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
 
       {/* Messages (réduits pendant l'appel actif) */}
       <div className={`${isCallActive ? 'h-32' : 'flex-1'} overflow-y-auto p-4 space-y-3`}>
+        {messages.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-500">💬 Aucun message pour l'instant</p>
+            <p className="text-gray-400 text-sm">Commencez la conversation !</p>
+          </div>
+        )}
+        
         {messages.map((message) => {
           const isMyMessage = message.sender_id === user?.id;
           const isSystemMessage = message.content?.includes('🤝');
