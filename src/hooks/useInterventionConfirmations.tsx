@@ -28,16 +28,14 @@ export function useInterventionConfirmations(missionId: string) {
 
     const loadConfirmations = async () => {
       try {
-        // Utiliser une requête directe sur la table
         const { data, error } = await supabase
-          .from('intervention_confirmations' as any)
+          .from('intervention_confirmations')
           .select('*')
           .eq('request_id', missionId)
           .order('created_at', { ascending: false });
 
         if (error) {
           console.error('❌ Erreur chargement confirmations:', error);
-          // Si la table n'existe pas encore, on continue sans erreur
           setConfirmations([]);
           return;
         }
@@ -91,7 +89,7 @@ export function useInterventionConfirmations(missionId: string) {
 
     try {
       const { error } = await supabase
-        .from('intervention_confirmations' as any)
+        .from('intervention_confirmations')
         .insert({
           request_id: missionId,
           provider_id: providerId,
@@ -129,7 +127,7 @@ export function useInterventionConfirmations(missionId: string) {
 
     try {
       const { error } = await supabase
-        .from('intervention_confirmations' as any)
+        .from('intervention_confirmations')
         .update({
           status,
           client_response: response,

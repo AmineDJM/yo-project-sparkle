@@ -9,6 +9,64 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      intervention_confirmations: {
+        Row: {
+          client_id: string
+          client_response: string | null
+          created_at: string
+          id: string
+          provider_id: string
+          provider_message: string | null
+          request_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_response?: string | null
+          created_at?: string
+          id?: string
+          provider_id: string
+          provider_message?: string | null
+          request_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_response?: string | null
+          created_at?: string
+          id?: string
+          provider_id?: string
+          provider_message?: string | null
+          request_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_intervention_confirmations_client_id"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_intervention_confirmations_provider_id"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_intervention_confirmations_request_id"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
