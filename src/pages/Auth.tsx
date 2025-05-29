@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -172,8 +171,8 @@ export default function Auth() {
       cleanupAuthState();
       
       const { data, error } = await supabase.auth.signUp({
-        email: 'sys.admin.homi.2024@tempmail-internal.xyz',
-        password: 'HM_adm!n#2024$Secure',
+        email: 'admin@homi-app.com',
+        password: 'HomiAdmin2024!',
         options: {
           data: {
             full_name: 'Administrateur Système',
@@ -199,7 +198,7 @@ export default function Auth() {
 
         toast({
           title: "Compte admin créé !",
-          description: "Email: sys.admin.homi.2024@tempmail-internal.xyz",
+          description: "Email: admin@homi-app.com",
         });
         
         setShowAdminCreation(false);
