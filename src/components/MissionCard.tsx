@@ -31,6 +31,38 @@ const categoryLabels = {
   autre: 'Autre'
 };
 
+// Fonction pour masquer l'adresse et ne montrer que l'arrondissement
+const maskAddress = (address: string): string => {
+  // Extraire l'arrondissement ou le quartier de l'adresse
+  const parts = address.split(',');
+  if (parts.length >= 2) {
+    // Essayer de trouver un code postal ou arrondissement
+    const lastPart = parts[parts.length - 1].trim();
+    const secondLastPart = parts[parts.length - 2].trim();
+    
+    // Si le dernier élément contient un code postal (5 chiffres)
+    const postalMatch = address.match(/\b\d{5}\b/);
+    if (postalMatch) {
+      const postal = postalMatch[0];
+      const arrondissement = postal.startsWith('75') ? 
+        `${postal.slice(-2)}ème arrondissement` : 
+        `Secteur ${postal.slice(0, 2)}`;
+      return arrondissement;
+    }
+    
+    // Sinon, retourner la partie la plus générale
+    return secondLastPart.length > 3 ? secondLastPart : lastPart;
+  }
+  
+  // Fallback: masquer tout sauf les derniers mots
+  const words = address.split(' ');
+  if (words.length > 2) {
+    return `Secteur ${words.slice(-2).join(' ')}`;
+  }
+  
+  return 'Zone confidentielle';
+};
+
 export default function MissionCard({ mission, onAccept, isNew = false }: MissionCardProps) {
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -44,6 +76,8 @@ export default function MissionCard({ mission, onAccept, isNew = false }: Missio
     if (diffHours < 24) return `Il y a ${diffHours}h`;
     return `Il y a ${Math.floor(diffHours / 24)}j`;
   };
+
+  const maskedAddress = maskAddress(mission.address);
 
   return (
     <Card className={`transition-all duration-300 hover:shadow-lg ${
@@ -84,7 +118,10 @@ export default function MissionCard({ mission, onAccept, isNew = false }: Missio
         
         <div className="flex items-center text-sm text-gray-600">
           <MapPin className="w-4 h-4 mr-2" />
-          <span className="truncate">{mission.address}</span>
+          <span className="truncate">{maskedAddress}</span>
+          <Badge variant="outline" className="ml-2 text-xs">
+            Adresse masquée
+          </Badge>
         </div>
         
         {mission.estimated_budget && (
@@ -109,6 +146,10 @@ export default function MissionCard({ mission, onAccept, isNew = false }: Missio
           >
             Postuler
           </Button>
+        </div>
+        
+        <div className="text-xs text-gray-500 border-t pt-2">
+          💡 L'adresse complète sera dévoilée après validation de votre candidature par le client
         </div>
       </CardContent>
     </Card>

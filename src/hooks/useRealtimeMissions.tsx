@@ -2,15 +2,61 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/hooks/useAuth';
 
 type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
 
 export function useRealtimeMissions(userLat?: number, userLng?: number, radius = 10) {
+  const { user } = useAuth();
   const [missions, setMissions] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
+
+  // Vérifier si le prestataire est en ligne
+  useEffect(() => {
+    const checkOnlineStatus = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('latitude, longitude')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Erreur lors de la vérification du statut:', error);
+          return;
+        }
+
+        const online = !!(data?.latitude && data?.longitude);
+        setIsOnline(online);
+        
+        if (online) {
+          console.log('🟢 Prestataire en ligne, écoute des missions...');
+        } else {
+          console.log('🔴 Prestataire hors ligne');
+          setMissions([]);
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Erreur:', error);
+        setLoading(false);
+      }
+    };
+
+    checkOnlineStatus();
+  }, [user]);
 
   useEffect(() => {
-    // Charger les missions initiales
+    if (!isOnline) {
+      setMissions([]);
+      setLoading(false);
+      return;
+    }
+
+    // Charger les missions initiales seulement si en ligne
     const fetchInitialMissions = async () => {
       try {
         const { data, error } = await supabase
@@ -24,6 +70,7 @@ export function useRealtimeMissions(userLat?: number, userLng?: number, radius =
           return;
         }
 
+        console.log('📋 Missions chargées:', data?.length || 0);
         setMissions(data || []);
       } catch (error) {
         console.error('Erreur:', error);
@@ -34,7 +81,7 @@ export function useRealtimeMissions(userLat?: number, userLng?: number, radius =
 
     fetchInitialMissions();
 
-    // Écouter les nouvelles missions en temps réel
+    // Écouter les nouvelles missions en temps réel seulement si en ligne
     const channel = supabase
       .channel('service-requests-realtime')
       .on(
@@ -60,7 +107,7 @@ export function useRealtimeMissions(userLat?: number, userLng?: number, radius =
           table: 'service_requests'
         },
         (payload) => {
-          console.log('Mission mise à jour:', payload);
+          console.log('📝 Mission mise à jour:', payload);
           const updatedMission = payload.new as ServiceRequest;
           
           setMissions(prev => 
@@ -75,7 +122,7 @@ export function useRealtimeMissions(userLat?: number, userLng?: number, radius =
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userLat, userLng, radius]);
+  }, [isOnline, userLat, userLng, radius]);
 
-  return { missions, loading };
+  return { missions, loading, isOnline };
 }

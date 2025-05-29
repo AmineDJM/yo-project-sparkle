@@ -8,8 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, Camera, MapPin } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Camera, MapPin, Navigation } from 'lucide-react';
 
 export default function NewRequest() {
   const { user } = useAuth();
@@ -20,6 +20,8 @@ export default function NewRequest() {
   const [address, setAddress] = useState('');
   const [estimatedBudget, setEstimatedBudget] = useState('');
   const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
 
   const categories = [
@@ -41,31 +43,62 @@ export default function NewRequest() {
   ];
 
   const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          // In a real app, you would use a geocoding service here
-          setAddress(`Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`);
-          toast({
-            title: "Position détectée",
-            description: "Votre position a été ajoutée à la demande",
-          });
-        },
-        () => {
-          toast({
-            variant: "destructive",
-            title: "Erreur de géolocalisation",
-            description: "Impossible d'obtenir votre position",
-          });
-        }
-      );
+    setLocationLoading(true);
+    
+    if (!navigator.geolocation) {
+      toast({
+        variant: "destructive",
+        title: "Géolocalisation non supportée",
+        description: "Votre navigateur ne supporte pas la géolocalisation",
+      });
+      setLocationLoading(false);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setCoordinates({ lat: latitude, lng: longitude });
+        
+        // Dans une vraie application, on utiliserait un service de géocodage inversé
+        // Pour la démo, on affiche les coordonnées
+        setAddress(`Position actuelle (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+        
+        toast({
+          title: "Position détectée",
+          description: "Votre position a été ajoutée à la demande",
+        });
+        setLocationLoading(false);
+      },
+      (error) => {
+        console.error('Erreur de géolocalisation:', error);
+        toast({
+          variant: "destructive",
+          title: "Erreur de géolocalisation",
+          description: "Impossible d'obtenir votre position. Veuillez saisir votre adresse manuellement.",
+        });
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      }
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    if (!address.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Adresse requise",
+        description: "Veuillez saisir une adresse ou utiliser votre position actuelle",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -76,8 +109,8 @@ export default function NewRequest() {
         category: category as any,
         urgency: urgency as any,
         address,
-        latitude: 0, // Would be set from geolocation
-        longitude: 0, // Would be set from geolocation
+        latitude: coordinates?.lat || 0,
+        longitude: coordinates?.lng || 0,
         estimated_budget: estimatedBudget ? parseFloat(estimatedBudget) : null,
       };
 
@@ -193,22 +226,32 @@ export default function NewRequest() {
 
               <div className="space-y-2">
                 <Label htmlFor="address">Adresse</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Votre adresse"
-                    required
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={getCurrentLocation}
-                    className="px-3"
-                  >
-                    <MapPin className="w-4 h-4" />
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      id="address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Saisissez votre adresse complète"
+                      required
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={getCurrentLocation}
+                      disabled={locationLoading}
+                      className="px-3"
+                    >
+                      {locationLoading ? (
+                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                      ) : (
+                        <Navigation className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    🔒 Votre adresse exacte ne sera visible qu'après acceptation de votre demande
+                  </div>
                 </div>
               </div>
 
