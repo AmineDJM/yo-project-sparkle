@@ -9,6 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_logs_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_logs_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intervention_confirmations: {
         Row: {
           client_id: string
@@ -176,6 +218,8 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           phone: string | null
+          provider_status: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
           updated_at: string | null
           user_type: Database["public"]["Enums"]["user_type"]
         }
@@ -190,6 +234,8 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           phone?: string | null
+          provider_status?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           updated_at?: string | null
           user_type: Database["public"]["Enums"]["user_type"]
         }
@@ -204,6 +250,8 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           phone?: string | null
+          provider_status?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           updated_at?: string | null
           user_type?: Database["public"]["Enums"]["user_type"]
         }
@@ -370,12 +418,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
       propose_mission_to_nearest_providers: {
         Args: { request_id_param: string }
         Returns: undefined
       }
     }
     Enums: {
+      app_role: "admin" | "client" | "provider"
       request_status:
         | "pending"
         | "accepted"
@@ -508,6 +564,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "client", "provider"],
       request_status: [
         "pending",
         "accepted",
