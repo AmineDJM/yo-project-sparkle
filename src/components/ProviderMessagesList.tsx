@@ -1,10 +1,11 @@
-
 import { useState, useEffect } from 'react';
 import { useProviderApplications } from '@/hooks/useProviderApplications';
+import { useChat } from '@/hooks/useChat';
+import MissionChat from './MissionChat';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, MessageCircle, Clock, CheckCircle, XCircle, User, Euro } from 'lucide-react';
+import { MapPin, MessageCircle, Clock, User, Euro } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
 type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
@@ -19,6 +20,18 @@ interface ApplicationWithRequest {
 
 export default function ProviderMessagesList() {
   const { applications, loading } = useProviderApplications();
+  const { activeChat, openChat, closeChat } = useChat();
+
+  // Si un chat est actif, afficher le composant de chat
+  if (activeChat) {
+    return (
+      <MissionChat
+        missionId={activeChat.missionId}
+        missionTitle={activeChat.missionTitle}
+        onBack={closeChat}
+      />
+    );
+  }
 
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
@@ -64,9 +77,8 @@ export default function ProviderMessagesList() {
     }
   };
 
-  const handleOpenChat = (requestId: string) => {
-    console.log('Ouvrir chat pour la mission:', requestId);
-    // TODO: Navigation vers la messagerie
+  const handleOpenChat = (application: ApplicationWithRequest) => {
+    openChat(application.request_id, application.service_request.title || 'Mission');
   };
 
   if (loading) {
@@ -173,7 +185,7 @@ export default function ProviderMessagesList() {
 
               {/* Bouton messagerie */}
               <Button 
-                onClick={() => handleOpenChat(application.request_id)}
+                onClick={() => handleOpenChat(application)}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl"
               >
                 <MessageCircle className="w-5 h-5 mr-2" />

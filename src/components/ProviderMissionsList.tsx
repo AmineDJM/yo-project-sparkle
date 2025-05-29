@@ -1,7 +1,9 @@
 
 import { useState, useEffect } from 'react';
 import { useConfirmedMissions } from '@/hooks/useConfirmedMissions';
+import { useChat } from '@/hooks/useChat';
 import MissionCard from './MissionCard';
+import MissionChat from './MissionChat';
 import ProviderStatusToggle from './ProviderStatusToggle';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, WifiOff, CheckCircle } from 'lucide-react';
@@ -9,10 +11,24 @@ import { Badge } from '@/components/ui/badge';
 
 export default function ProviderMissionsList() {
   const { missions, loading, isOnline } = useConfirmedMissions();
+  const { activeChat, openChat, closeChat } = useChat();
+
+  // Si un chat est actif, afficher le composant de chat
+  if (activeChat) {
+    return (
+      <MissionChat
+        missionId={activeChat.missionId}
+        missionTitle={activeChat.missionTitle}
+        onBack={closeChat}
+      />
+    );
+  }
 
   const handleOpenMessage = (missionId: string) => {
-    console.log('Ouvrir messagerie pour la mission:', missionId);
-    // TODO: Navigation vers la messagerie de la mission
+    const mission = missions.find(m => m.id === missionId);
+    if (mission) {
+      openChat(missionId, mission.title || 'Mission');
+    }
   };
 
   return (
