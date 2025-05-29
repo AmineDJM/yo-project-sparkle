@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
@@ -24,6 +25,7 @@ export function useAdminData() {
         return;
       }
 
+      console.log('Prestataires récupérés:', data);
       setProviders(data || []);
     } catch (error) {
       console.error('Erreur:', error);
@@ -72,12 +74,11 @@ export function useAdminData() {
     }
   };
 
-  // Modification de la signature de la fonction pour ne prendre que 2 paramètres
   const updateProviderStatus = async (providerId: string, status: 'approved' | 'rejected') => {
     try {
-      // Utiliser l'ID admin du système pour les logs
-      const adminId = 'admin-system'; // ID fictif pour l'admin
+      console.log('Mise à jour du statut:', { providerId, status });
 
+      // Mettre à jour le statut du prestataire
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ provider_status: status })
@@ -88,19 +89,23 @@ export function useAdminData() {
         return false;
       }
 
-      // Log l'action (sans vérifier l'admin réel pour l'instant)
+      console.log('Statut mis à jour avec succès');
+
+      // Créer un log admin (optionnel, peut échouer)
       try {
-        await supabase
-          .from('admin_logs')
-          .insert({
-            admin_id: adminId,
-            action: `provider_${status}`,
-            target_user_id: providerId,
-            details: { status }
-          });
+        const { data: adminData } = await supabase.auth.getUser();
+        if (adminData.user) {
+          await supabase
+            .from('admin_logs')
+            .insert({
+              admin_id: adminData.user.id,
+              action: `provider_${status}`,
+              target_user_id: providerId,
+              details: { status }
+            });
+        }
       } catch (logError) {
-        console.error('Erreur lors du log:', logError);
-        // Continue même si le log échoue
+        console.error('Erreur lors du log (non bloquant):', logError);
       }
 
       // Rafraîchir les données
@@ -109,7 +114,7 @@ export function useAdminData() {
 
       return true;
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Erreur générale:', error);
       return false;
     }
   };
@@ -135,6 +140,7 @@ export function useAdminData() {
           filter: 'user_type=eq.provider'
         },
         () => {
+          console.log('Changement détecté dans les prestataires');
           fetchProviders();
         }
       )

@@ -16,20 +16,32 @@ export default function AdminDashboard() {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const handleStatusUpdate = async (providerId: string, status: 'approved' | 'rejected') => {
-    if (!user) return;
-
-    setProcessingId(providerId);
-    const success = await updateProviderStatus(providerId, status);
+    console.log('Début de la mise à jour du statut:', { providerId, status });
     
-    if (success) {
-      toast({
-        title: "Statut mis à jour",
-        description: `Prestataire ${status === 'approved' ? 'approuvé' : 'rejeté'} avec succès`,
-      });
-    } else {
+    setProcessingId(providerId);
+    
+    try {
+      const success = await updateProviderStatus(providerId, status);
+      
+      if (success) {
+        toast({
+          title: "Statut mis à jour",
+          description: `Prestataire ${status === 'approved' ? 'approuvé' : 'rejeté'} avec succès`,
+        });
+        console.log('Mise à jour réussie');
+      } else {
+        toast({
+          title: "Erreur",
+          description: "Impossible de mettre à jour le statut",
+          variant: "destructive",
+        });
+        console.error('Échec de la mise à jour');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de mettre à jour le statut",
+        description: "Une erreur est survenue",
         variant: "destructive",
       });
     }
@@ -195,6 +207,7 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableHead>Nom</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Téléphone</TableHead>
                       <TableHead>Date d'inscription</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead>Actions</TableHead>
@@ -205,6 +218,7 @@ export default function AdminDashboard() {
                       <TableRow key={provider.id}>
                         <TableCell className="font-medium">{provider.full_name}</TableCell>
                         <TableCell>{provider.email}</TableCell>
+                        <TableCell>{provider.phone || 'Non renseigné'}</TableCell>
                         <TableCell>{formatDate(provider.created_at || '')}</TableCell>
                         <TableCell>{getStatusBadge(provider.provider_status || 'pending')}</TableCell>
                         <TableCell>
@@ -216,7 +230,7 @@ export default function AdminDashboard() {
                               disabled={processingId === provider.id}
                             >
                               <CheckCircle className="w-4 h-4 mr-1" />
-                              Approuver
+                              {processingId === provider.id ? 'En cours...' : 'Approuver'}
                             </Button>
                             <Button
                               size="sm"
@@ -225,7 +239,7 @@ export default function AdminDashboard() {
                               disabled={processingId === provider.id}
                             >
                               <XCircle className="w-4 h-4 mr-1" />
-                              Rejeter
+                              {processingId === provider.id ? 'En cours...' : 'Rejeter'}
                             </Button>
                           </div>
                         </TableCell>
@@ -250,6 +264,7 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableHead>Nom</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Téléphone</TableHead>
                     <TableHead>Date d'inscription</TableHead>
                     <TableHead>Statut</TableHead>
                   </TableRow>
@@ -259,6 +274,7 @@ export default function AdminDashboard() {
                     <TableRow key={provider.id}>
                       <TableCell className="font-medium">{provider.full_name}</TableCell>
                       <TableCell>{provider.email}</TableCell>
+                      <TableCell>{provider.phone || 'Non renseigné'}</TableCell>
                       <TableCell>{formatDate(provider.created_at || '')}</TableCell>
                       <TableCell>{getStatusBadge(provider.provider_status || 'pending')}</TableCell>
                     </TableRow>
@@ -281,6 +297,7 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableHead>Nom</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Téléphone</TableHead>
                     <TableHead>Date d'inscription</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Actions</TableHead>
@@ -291,6 +308,7 @@ export default function AdminDashboard() {
                     <TableRow key={provider.id}>
                       <TableCell className="font-medium">{provider.full_name}</TableCell>
                       <TableCell>{provider.email}</TableCell>
+                      <TableCell>{provider.phone || 'Non renseigné'}</TableCell>
                       <TableCell>{formatDate(provider.created_at || '')}</TableCell>
                       <TableCell>{getStatusBadge(provider.provider_status || 'pending')}</TableCell>
                       <TableCell>
@@ -301,7 +319,7 @@ export default function AdminDashboard() {
                           disabled={processingId === provider.id}
                         >
                           <CheckCircle className="w-4 h-4 mr-1" />
-                          Réhabiliter
+                          {processingId === provider.id ? 'En cours...' : 'Réhabiliter'}
                         </Button>
                       </TableCell>
                     </TableRow>
