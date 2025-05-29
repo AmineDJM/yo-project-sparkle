@@ -2,18 +2,17 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, Euro, User, Zap } from 'lucide-react';
+import { Clock, MapPin, Euro, User, MessageCircle } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
 type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
 
 interface MissionCardProps {
   mission: ServiceRequest;
-  onAccept: (missionId: string) => void;
-  isNew?: boolean;
+  onMessage: (missionId: string) => void;
 }
 
-export default function MissionCard({ mission, onAccept, isNew }: MissionCardProps) {
+export default function MissionCard({ mission, onMessage }: MissionCardProps) {
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -44,14 +43,12 @@ export default function MissionCard({ mission, onAccept, isNew }: MissionCardPro
       'low': 'bg-green-100 text-green-800',
       'medium': 'bg-yellow-100 text-yellow-800',
       'high': 'bg-orange-100 text-orange-800',
-      'urgent': 'bg-red-100 text-red-800 animate-pulse'
+      'urgent': 'bg-red-100 text-red-800'
     };
     return colors[urgency] || colors.medium;
   };
 
-  // Masquer l'adresse complète - ne montrer que l'arrondissement
   const getMaskedAddress = (address: string) => {
-    // Extraction simplifiée de l'arrondissement (à améliorer avec une vraie API)
     const parts = address.split(',');
     if (parts.length > 1) {
       return `${parts[parts.length - 2]?.trim() || 'Zone non spécifiée'}`;
@@ -60,19 +57,14 @@ export default function MissionCard({ mission, onAccept, isNew }: MissionCardPro
   };
 
   return (
-    <Card className={`cursor-pointer transition-all hover:shadow-lg active:scale-95 ${
-      isNew ? 'ring-2 ring-blue-500 ring-opacity-50 shadow-lg animate-pulse' : ''
-    }`}>
+    <Card className="cursor-pointer transition-all hover:shadow-lg">
       <CardContent className="p-4">
-        {/* Header avec badge nouveau et urgence */}
+        {/* Header avec badge confirmé et urgence */}
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2">
-            {isNew && (
-              <Badge className="bg-green-500 text-white text-xs animate-bounce">
-                <Zap className="w-3 h-3 mr-1" />
-                Nouveau
-              </Badge>
-            )}
+            <Badge className="bg-green-500 text-white text-xs">
+              ✅ Intervention confirmée
+            </Badge>
             <Badge className={`text-xs ${getUrgencyColor(mission.urgency || 'medium')}`}>
               {mission.urgency === 'urgent' && '🚨 '}
               {mission.urgency === 'high' ? 'Élevé' : 
@@ -124,12 +116,13 @@ export default function MissionCard({ mission, onAccept, isNew }: MissionCardPro
           )}
         </div>
 
-        {/* Action button */}
+        {/* Bouton messagerie */}
         <Button 
-          onClick={() => onAccept(mission.id)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-all active:scale-95"
+          onClick={() => onMessage(mission.id)}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-all"
         >
-          Je postule à cette mission
+          <MessageCircle className="w-5 h-5 mr-2" />
+          Accéder à la messagerie
         </Button>
       </CardContent>
     </Card>

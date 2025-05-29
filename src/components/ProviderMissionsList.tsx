@@ -1,41 +1,18 @@
 
 import { useState, useEffect } from 'react';
-import { useRealtimeMissions } from '@/hooks/useRealtimeMissions';
+import { useConfirmedMissions } from '@/hooks/useConfirmedMissions';
 import MissionCard from './MissionCard';
 import ProviderStatusToggle from './ProviderStatusToggle';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapPin, WifiOff, Zap } from 'lucide-react';
+import { MapPin, WifiOff, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function ProviderMissionsList() {
-  const { missions, loading, isOnline } = useRealtimeMissions();
-  const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
+  const { missions, loading, isOnline } = useConfirmedMissions();
 
-  useEffect(() => {
-    // Marquer les nouvelles missions comme récentes pendant 5 secondes
-    if (missions.length > 0) {
-      const latestMission = missions[0];
-      const now = new Date();
-      const missionTime = new Date(latestMission.created_at || '');
-      const diffSeconds = (now.getTime() - missionTime.getTime()) / 1000;
-      
-      if (diffSeconds < 30) { // Mission créée dans les 30 dernières secondes
-        setRecentlyAdded(prev => new Set([...prev, latestMission.id]));
-        
-        setTimeout(() => {
-          setRecentlyAdded(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(latestMission.id);
-            return newSet;
-          });
-        }, 5000);
-      }
-    }
-  }, [missions]);
-
-  const handleAcceptMission = (missionId: string) => {
-    console.log('Postuler pour la mission:', missionId);
-    // Note: Maintenant les missions sont proposées automatiquement via le système de propositions
+  const handleOpenMessage = (missionId: string) => {
+    console.log('Ouvrir messagerie pour la mission:', missionId);
+    // TODO: Navigation vers la messagerie de la mission
   };
 
   return (
@@ -43,52 +20,35 @@ export default function ProviderMissionsList() {
       {/* Toggle de statut en ligne/hors ligne */}
       <ProviderStatusToggle />
 
-      {/* Status en temps réel */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-gray-900">
-          Toutes les missions
+          Mes interventions confirmées
         </h2>
         <div className="flex items-center gap-2">
           <Badge variant={isOnline ? "default" : "secondary"} className="text-xs">
             {isOnline ? (
               <>
-                <Zap className="w-3 h-3 mr-1" />
-                Live
+                <CheckCircle className="w-3 h-3 mr-1" />
+                En ligne
               </>
             ) : (
               <>
                 <WifiOff className="w-3 h-3 mr-1" />
-                Offline
+                Hors ligne
               </>
             )}
           </Badge>
-          {isOnline && (
+          {missions.length > 0 && (
             <Badge variant="outline" className="text-xs">
-              {missions.length}
+              {missions.length} mission{missions.length > 1 ? 's' : ''}
             </Badge>
           )}
         </div>
       </div>
 
-      {/* Message si hors ligne */}
-      {!isOnline && (
-        <Card className="text-center border-dashed border-2">
-          <CardContent className="p-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <WifiOff className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Vous êtes hors ligne
-            </h3>
-            <p className="text-sm text-gray-600">
-              Activez votre statut pour recevoir des propositions
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Loading état */}
-      {isOnline && loading && (
+      {loading && (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
             <Card key={i} className="animate-pulse">
@@ -106,41 +66,36 @@ export default function ProviderMissionsList() {
         </div>
       )}
 
-      {/* Liste des missions */}
-      {isOnline && !loading && (
+      {/* Liste des missions confirmées */}
+      {!loading && (
         <>
           {missions.length === 0 ? (
             <Card className="text-center border-dashed border-2">
               <CardContent className="p-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MapPin className="w-8 h-8 text-blue-600" />
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  En attente de missions...
+                  Aucune intervention confirmée
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Les nouvelles missions apparaîtront ici en temps réel
+                  Vos missions confirmées apparaîtront ici
                 </p>
-                <div className="flex justify-center mt-4">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                  </div>
-                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Consultez vos propositions pour postuler à de nouvelles missions
+                </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-gray-500 px-2">
-                💡 Les missions vous sont automatiquement proposées selon votre proximité
+                ✅ Interventions confirmées par le client
               </p>
               {missions.map((mission) => (
                 <MissionCard
                   key={mission.id}
                   mission={mission}
-                  onAccept={handleAcceptMission}
-                  isNew={recentlyAdded.has(mission.id)}
+                  onMessage={handleOpenMessage}
                 />
               ))}
             </div>

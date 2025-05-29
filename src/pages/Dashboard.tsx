@@ -6,13 +6,14 @@ import { Wrench, User, Plus, MapPin, MessageSquare, Settings, Menu, Bell, Zap } 
 import { useNavigate } from 'react-router-dom';
 import ProviderMissionsList from '@/components/ProviderMissionsList';
 import ProviderProposalsList from '@/components/ProviderProposalsList';
+import ProviderMessagesList from '@/components/ProviderMessagesList';
 import { useState } from 'react';
 
 export default function Dashboard() {
   const { signOut } = useAuth();
   const { profile, loading, error } = useProfile();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'proposals' | 'missions'>('proposals');
+  const [activeView, setActiveView] = useState<'proposals' | 'missions' | 'messages'>('proposals');
 
   if (loading) {
     return (
@@ -70,7 +71,7 @@ export default function Dashboard() {
       <div className="pb-20">
         {/* Main content */}
         {isProvider ? (
-          <ProviderDashboard profile={profile} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <ProviderDashboard profile={profile} activeView={activeView} setActiveView={setActiveView} />
         ) : (
           <ClientDashboard profile={profile} navigate={navigate} />
         )}
@@ -82,22 +83,31 @@ export default function Dashboard() {
           {isProvider ? (
             <>
               <Button 
-                variant={activeTab === 'proposals' ? 'default' : 'ghost'} 
+                variant={activeView === 'proposals' ? 'default' : 'ghost'} 
                 className="flex flex-col items-center p-2 h-auto" 
                 size="sm"
-                onClick={() => setActiveTab('proposals')}
+                onClick={() => setActiveView('proposals')}
               >
                 <Zap className="w-5 h-5 mb-1" />
                 <span className="text-xs">Propositions</span>
               </Button>
               <Button 
-                variant={activeTab === 'missions' ? 'default' : 'ghost'} 
+                variant={activeView === 'missions' ? 'default' : 'ghost'} 
                 className="flex flex-col items-center p-2 h-auto" 
                 size="sm"
-                onClick={() => setActiveTab('missions')}
+                onClick={() => setActiveView('missions')}
               >
                 <MapPin className="w-5 h-5 mb-1" />
                 <span className="text-xs">Missions</span>
+              </Button>
+              <Button 
+                variant={activeView === 'messages' ? 'default' : 'ghost'} 
+                className="flex flex-col items-center p-2 h-auto" 
+                size="sm"
+                onClick={() => setActiveView('messages')}
+              >
+                <MessageSquare className="w-5 h-5 mb-1" />
+                <span className="text-xs">Messages</span>
               </Button>
             </>
           ) : (
@@ -112,12 +122,12 @@ export default function Dashboard() {
               >
                 <Plus className="w-6 h-6 text-white" />
               </Button>
+              <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
+                <MessageSquare className="w-5 h-5 mb-1" />
+                <span className="text-xs">Messages</span>
+              </Button>
             </>
           )}
-          <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
-            <MessageSquare className="w-5 h-5 mb-1" />
-            <span className="text-xs">Messages</span>
-          </Button>
           <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
             <Settings className="w-5 h-5 mb-1" />
             <span className="text-xs">Profil</span>
@@ -228,18 +238,16 @@ function ClientDashboard({ profile, navigate }: { profile: any; navigate: any })
   );
 }
 
-function ProviderDashboard({ profile, activeTab, setActiveTab }: { 
+function ProviderDashboard({ profile, activeView, setActiveView }: { 
   profile: any; 
-  activeTab: 'proposals' | 'missions';
-  setActiveTab: (tab: 'proposals' | 'missions') => void;
+  activeView: 'proposals' | 'missions' | 'messages';
+  setActiveView: (view: 'proposals' | 'missions' | 'messages') => void;
 }) {
   return (
     <div className="space-y-4">
-      {activeTab === 'proposals' ? (
-        <ProviderProposalsList />
-      ) : (
-        <ProviderMissionsList />
-      )}
+      {activeView === 'proposals' && <ProviderProposalsList />}
+      {activeView === 'missions' && <ProviderMissionsList />}
+      {activeView === 'messages' && <ProviderMessagesList />}
     </div>
   );
 }
