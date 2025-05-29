@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +13,7 @@ type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
 export default function ClientMissionsList() {
   const { user } = useAuth();
   const [missions, setMissions] = useState<ServiceRequest[]>([]);
+  const [confirmedMissions, setConfirmedMissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -22,6 +22,7 @@ export default function ClientMissionsList() {
 
     const fetchMissions = async () => {
       try {
+        // Récupérer les missions du client
         const { data, error } = await supabase
           .from('service_requests')
           .select('*')
@@ -35,6 +36,19 @@ export default function ClientMissionsList() {
 
         setMissions(data || []);
         console.log('📝 Missions client chargées:', data?.length || 0);
+
+        // Récupérer les missions confirmées par intervention
+        const { data: confirmations, error: confirmError } = await supabase
+          .from('intervention_confirmations')
+          .select('request_id')
+          .eq('client_id', user.id)
+          .eq('status', 'accepted');
+
+        if (!confirmError && confirmations) {
+          const confirmedIds = confirmations.map(c => c.request_id);
+          setConfirmedMissions(confirmedIds);
+          console.log('✅ Missions confirmées:', confirmedIds.length);
+        }
       } catch (error) {
         console.error('Erreur:', error);
       } finally {
@@ -62,6 +76,24 @@ export default function ClientMissionsList() {
               mission.id === updatedMission.id ? updatedMission : mission
             )
           );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'intervention_confirmations'
+        },
+        (payload) => {
+          if (payload.eventType === 'UPDATE' && payload.new.status === 'accepted') {
+            setConfirmedMissions(prev => {
+              if (!prev.includes(payload.new.request_id)) {
+                return [...prev, payload.new.request_id];
+              }
+              return prev;
+            });
+          }
         }
       )
       .subscribe();
@@ -96,8 +128,14 @@ export default function ClientMissionsList() {
     return emojis[category] || '⚙️';
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (mission: ServiceRequest) => {
+    // Vérifier si la mission est confirmée par intervention
+    if (confirmedMissions.includes(mission.id)) {
+      return <Badge className="bg-green-100 text-green-800">✅ Confirmée</Badge>;
+    }
+
+    // Sinon, utiliser le statut normal de la mission
+    switch (mission.status) {
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800">⏳ En attente</Badge>;
       case 'in_progress':
@@ -186,7 +224,7 @@ export default function ClientMissionsList() {
             <CardContent className="p-4">
               {/* Status et timing */}
               <div className="flex justify-between items-start mb-3">
-                {getStatusBadge(mission.status)}
+                {getStatusBadge(mission)}
                 <span className="text-xs text-gray-500 flex items-center">
                   <Clock className="w-3 h-3 mr-1" />
                   {formatTimeAgo(mission.created_at || '')}

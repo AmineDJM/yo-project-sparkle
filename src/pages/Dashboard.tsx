@@ -10,13 +10,14 @@ import ProviderProposalsList from '@/components/ProviderProposalsList';
 import ProviderMessagesList from '@/components/ProviderMessagesList';
 import ClientMissionsList from '@/components/ClientMissionsList';
 import ClientApplicationsList from '@/components/ClientApplicationsList';
+import UserProfile from '@/components/UserProfile';
 import { useState } from 'react';
 
 export default function Dashboard() {
   const { signOut } = useAuth();
   const { profile, loading, error } = useProfile();
   const navigate = useNavigate();
-  const [activeView, setActiveView] = useState<'proposals' | 'missions' | 'messages'>('proposals');
+  const [activeView, setActiveView] = useState<'proposals' | 'missions' | 'messages' | 'profile'>('proposals');
 
   if (loading) {
     return (
@@ -141,8 +142,13 @@ export default function Dashboard() {
               </Button>
             </>
           )}
-          <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
-            <Settings className="w-5 h-5 mb-1" />
+          <Button 
+            variant={activeView === 'profile' ? 'default' : 'ghost'} 
+            className="flex flex-col items-center p-2 h-auto" 
+            size="sm"
+            onClick={() => setActiveView('profile')}
+          >
+            <User className="w-5 h-5 mb-1" />
             <span className="text-xs">Profil</span>
           </Button>
         </div>
@@ -154,8 +160,8 @@ export default function Dashboard() {
 function ClientDashboard({ profile, navigate, activeView, setActiveView }: { 
   profile: any; 
   navigate: any;
-  activeView: 'proposals' | 'missions' | 'messages';
-  setActiveView: (view: 'proposals' | 'missions' | 'messages') => void;
+  activeView: 'proposals' | 'missions' | 'messages' | 'profile';
+  setActiveView: (view: 'proposals' | 'missions' | 'messages' | 'profile') => void;
 }) {
   if (activeView === 'missions') {
     return <ClientMissionsList />;
@@ -163,6 +169,10 @@ function ClientDashboard({ profile, navigate, activeView, setActiveView }: {
 
   if (activeView === 'messages') {
     return <ClientApplicationsList />;
+  }
+
+  if (activeView === 'profile') {
+    return <UserProfile />;
   }
 
   // Vue par défaut (dashboard principal)
@@ -248,14 +258,15 @@ function ClientDashboard({ profile, navigate, activeView, setActiveView }: {
 
 function ProviderDashboard({ profile, activeView, setActiveView }: { 
   profile: any; 
-  activeView: 'proposals' | 'missions' | 'messages';
-  setActiveView: (view: 'proposals' | 'missions' | 'messages') => void;
+  activeView: 'proposals' | 'missions' | 'messages' | 'profile';
+  setActiveView: (view: 'proposals' | 'missions' | 'messages' | 'profile') => void;
 }) {
   return (
     <div className="space-y-4">
       {activeView === 'proposals' && <ProviderProposalsList />}
       {activeView === 'missions' && <ProviderMissionsList />}
       {activeView === 'messages' && <ProviderMessagesList />}
+      {activeView === 'profile' && <UserProfile />}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { useConfirmedMissions } from '@/hooks/useConfirmedMissions';
 import { useChat } from '@/hooks/useChat';
 import MissionCard from './MissionCard';
 import MissionChat from './MissionChat';
-import ProviderStatusToggle from './ProviderStatusToggle';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, WifiOff, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -33,9 +32,6 @@ export default function ProviderMissionsList() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Toggle de statut en ligne/hors ligne */}
-      <ProviderStatusToggle />
-
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-gray-900">

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Zap, Clock } from 'lucide-react';
 import { useRealtimeProposals } from '@/hooks/useRealtimeProposals';
 import ProposalCard from './ProposalCard';
+import ProviderStatusToggle from './ProviderStatusToggle';
 
 export default function ProviderProposalsList() {
   const { proposals, loading, applyToMission, rejectProposal } = useRealtimeProposals();
@@ -29,6 +30,9 @@ export default function ProviderProposalsList() {
 
   return (
     <div className="p-4 space-y-4">
+      {/* Toggle de statut en ligne/hors ligne */}
+      <ProviderStatusToggle />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900">

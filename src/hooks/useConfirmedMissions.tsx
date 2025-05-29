@@ -5,6 +5,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { Database } from '@/integrations/supabase/types';
 
 type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
+type InterventionConfirmation = Database['public']['Tables']['intervention_confirmations']['Row'];
+
+interface ConfirmedMissionWithRequest extends InterventionConfirmation {
+  service_request: ServiceRequest;
+}
 
 export function useConfirmedMissions() {
   const { user } = useAuth();
@@ -44,25 +49,35 @@ export function useConfirmedMissions() {
 
     const fetchConfirmedMissions = async () => {
       try {
-        // Récupérer les missions où le prestataire a postulé et qui sont confirmées
-        // Pour l'instant, on simule avec status = 'in_progress' ou 'completed'
-        const { data, error } = await supabase
-          .from('service_requests')
+        console.log('📋 Récupération des missions confirmées pour:', user.id);
+        
+        // Récupérer les confirmations d'intervention acceptées
+        const { data: confirmations, error: confirmationsError } = await supabase
+          .from('intervention_confirmations')
           .select(`
-            *
+            *,
+            service_request:service_requests(*)
           `)
-          .in('status', ['in_progress', 'completed'])
-          .eq('client_id', user.id); // Temporaire - il faudra une vraie relation
+          .eq('status', 'accepted')
+          .or(`provider_id.eq.${user.id},client_id.eq.${user.id}`)
+          .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Erreur lors du chargement des missions confirmées:', error);
+        if (confirmationsError) {
+          console.error('❌ Erreur lors du chargement des confirmations:', confirmationsError);
           return;
         }
 
-        console.log('📋 Missions confirmées chargées:', data?.length || 0);
-        setMissions(data || []);
+        console.log('📊 Confirmations trouvées:', confirmations?.length || 0);
+
+        // Extraire les missions depuis les confirmations
+        const confirmedMissions = (confirmations || [])
+          .map(conf => (conf as any).service_request)
+          .filter(mission => mission) as ServiceRequest[];
+
+        setMissions(confirmedMissions);
+        console.log('✅ Missions confirmées chargées:', confirmedMissions.length);
       } catch (error) {
-        console.error('Erreur:', error);
+        console.error('❌ Erreur:', error);
       } finally {
         setLoading(false);
       }
@@ -70,31 +85,36 @@ export function useConfirmedMissions() {
 
     fetchConfirmedMissions();
 
-    // Écouter les mises à jour en temps réel
+    // Écouter les nouvelles confirmations d'intervention
     const channel = supabase
       .channel('confirmed-missions-realtime')
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
-          table: 'service_requests'
+          table: 'intervention_confirmations'
         },
-        (payload) => {
-          const updatedMission = payload.new as ServiceRequest;
+        async (payload) => {
+          console.log('🔔 Changement confirmation intervention:', payload);
           
-          if (['in_progress', 'completed'].includes(updatedMission.status || '')) {
-            setMissions(prev => {
-              const exists = prev.find(m => m.id === updatedMission.id);
-              if (exists) {
-                return prev.map(m => m.id === updatedMission.id ? updatedMission : m);
-              } else {
-                return [updatedMission, ...prev];
-              }
-            });
-          } else {
-            // Retirer de la liste si plus confirmée
-            setMissions(prev => prev.filter(m => m.id !== updatedMission.id));
+          if (payload.eventType === 'UPDATE' && payload.new.status === 'accepted') {
+            // Récupérer les détails de la mission
+            const { data: mission, error } = await supabase
+              .from('service_requests')
+              .select('*')
+              .eq('id', payload.new.request_id)
+              .single();
+
+            if (!error && mission) {
+              setMissions(prev => {
+                const exists = prev.find(m => m.id === mission.id);
+                if (!exists) {
+                  return [mission, ...prev];
+                }
+                return prev;
+              });
+            }
           }
         }
       )
