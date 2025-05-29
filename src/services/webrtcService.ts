@@ -1,4 +1,3 @@
-
 export class WebRTCService {
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
@@ -47,7 +46,7 @@ export class WebRTCService {
     };
   }
 
-  async startCall(isVideo: boolean = false): Promise<void> {
+  async startCall(isVideo: boolean = false): Promise<MediaStream> {
     try {
       console.log('Starting call with video:', isVideo);
       
@@ -81,7 +80,7 @@ export class WebRTCService {
     }
   }
 
-  async answerCall(offer: RTCSessionDescriptionInit, isVideo: boolean = false): Promise<void> {
+  async answerCall(offer: RTCSessionDescriptionInit, isVideo: boolean = false): Promise<MediaStream> {
     try {
       console.log('Answering call with video:', isVideo);
 
