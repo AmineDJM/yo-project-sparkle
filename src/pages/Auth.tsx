@@ -12,6 +12,7 @@ import { Wrench, User } from 'lucide-react';
 
 // Fonction de nettoyage de l'état d'authentification
 const cleanupAuthState = () => {
+  console.log('Cleaning up auth state before action...');
   Object.keys(localStorage).forEach((key) => {
     if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
       localStorage.removeItem(key);
@@ -34,6 +35,15 @@ export default function Auth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -42,11 +52,12 @@ export default function Auth() {
       // Clean up existing state
       cleanupAuthState();
       
-      // Attempt global sign out
+      // Attempt global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
+        console.log('Previous session cleared');
       } catch (err) {
-        console.log('Sign out before sign in failed (this is OK):', err);
+        console.log('No previous session to clear');
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -56,7 +67,15 @@ export default function Auth() {
 
       if (error) {
         console.error('Sign in error:', error);
-        throw error;
+        let errorMessage = "Une erreur est survenue lors de la connexion";
+        
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = "Email ou mot de passe incorrect";
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = "Veuillez confirmer votre email avant de vous connecter";
+        }
+        
+        throw new Error(errorMessage);
       }
       
       if (data.user) {
@@ -65,8 +84,10 @@ export default function Auth() {
           title: "Connexion réussie !",
           description: "Vous êtes maintenant connecté.",
         });
-        // Force page reload for clean state
-        window.location.href = '/';
+        // Delay navigation to ensure auth state is updated
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -82,6 +103,24 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password || !fullName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Le mot de passe doit contenir au moins 6 caractères",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -90,13 +129,15 @@ export default function Auth() {
       // Clean up existing state
       cleanupAuthState();
       
-      // Attempt global sign out
+      // Attempt global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
+        console.log('Previous session cleared before signup');
       } catch (err) {
-        console.log('Sign out before sign up failed (this is OK):', err);
+        console.log('No previous session to clear before signup');
       }
 
+      // Create the user account
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -110,17 +151,61 @@ export default function Auth() {
 
       if (error) {
         console.error('Sign up error:', error);
-        throw error;
+        let errorMessage = "Une erreur est survenue lors de l'inscription";
+        
+        if (error.message.includes('User already registered')) {
+          errorMessage = "Un compte existe déjà avec cet email";
+        } else if (error.message.includes('Password should be at least')) {
+          errorMessage = "Le mot de passe doit contenir au moins 6 caractères";
+        } else if (error.message.includes('Invalid email')) {
+          errorMessage = "Adresse email invalide";
+        } else if (error.message.includes('Database error')) {
+          // Try to create the profile manually
+          console.log('Database error detected, will handle profile creation manually');
+        }
+        
+        if (!error.message.includes('Database error')) {
+          throw new Error(errorMessage);
+        }
       }
 
       if (data.user) {
         console.log('Sign up successful:', data.user.email);
+        
+        // If there was a database error, try to create the profile manually
+        if (error && error.message.includes('Database error')) {
+          console.log('Attempting manual profile creation...');
+          try {
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: data.user.id,
+                email: data.user.email || email.trim(),
+                full_name: fullName.trim(),
+                user_type: userType
+              });
+
+            if (profileError) {
+              console.error('Manual profile creation failed:', profileError);
+            } else {
+              console.log('Manual profile creation successful');
+            }
+          } catch (profileErr) {
+            console.error('Error during manual profile creation:', profileErr);
+          }
+        }
+
         toast({
-          title: "Compte créé !",
-          description: "Vous pouvez maintenant vous connecter.",
+          title: "Inscription réussie !",
+          description: data.session 
+            ? "Vous êtes maintenant connecté." 
+            : "Veuillez vérifier votre email pour confirmer votre compte.",
         });
-        // Force page reload for clean state
-        window.location.href = '/';
+        
+        // Delay navigation to ensure auth state is updated
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
       }
     } catch (error: any) {
       console.error('Sign up error:', error);
@@ -162,6 +247,7 @@ export default function Auth() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="votre@email.com"
                     required
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -173,6 +259,7 @@ export default function Auth() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
+                    disabled={loading}
                   />
                 </div>
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
@@ -191,6 +278,7 @@ export default function Auth() {
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Jean Dupont"
                     required
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -202,6 +290,7 @@ export default function Auth() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="votre@email.com"
                     required
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -214,11 +303,16 @@ export default function Auth() {
                     placeholder="••••••••"
                     required
                     minLength={6}
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-3">
                   <Label>Type de compte</Label>
-                  <RadioGroup value={userType} onValueChange={(value) => setUserType(value as 'client' | 'provider')}>
+                  <RadioGroup 
+                    value={userType} 
+                    onValueChange={(value) => setUserType(value as 'client' | 'provider')}
+                    disabled={loading}
+                  >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="client" id="client" />
                       <Label htmlFor="client" className="flex items-center gap-2">
