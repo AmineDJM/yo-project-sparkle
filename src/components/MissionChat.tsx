@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Send, Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useWebRTC } from '@/hooks/useWebRTC';
+import VideoCall from './VideoCall';
 import { Database } from '@/integrations/supabase/types';
 
 type Message = Database['public']['Tables']['messages']['Row'];
@@ -21,20 +23,29 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isCallActive, setIsCallActive] = useState(false);
-  const [isOutgoingCall, setIsOutgoingCall] = useState(false);
-  const [isIncomingCall, setIsIncomingCall] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(false);
-  const [callPartner, setCallPartner] = useState<string>('');
-  const [callDuration, setCallDuration] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const callStartTime = useRef<number>(0);
+  
+  const {
+    isCallActive,
+    isOutgoingCall,
+    isIncomingCall,
+    isMuted,
+    isVideoOn,
+    callDuration,
+    localStream,
+    remoteStream,
+    startCall,
+    acceptCall,
+    endCall,
+    toggleMute,
+    toggleVideo,
+    rejectCall,
+    formatCallDuration
+  } = useWebRTC(missionId);
 
   useEffect(() => {
     loadMessages();
     
-    // Écouter les nouveaux messages
     const channel = supabase
       .channel(`mission-chat-${missionId}`)
       .on(
@@ -47,38 +58,9 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          setMessages(prev => [...prev, newMessage]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `request_id=eq.${missionId}`
-        },
-        (payload) => {
-          const updatedMessage = payload.new as Message;
-          
-          // Gérer les demandes d'appel
-          if (updatedMessage.content?.includes('CALL_REQUEST') && updatedMessage.sender_id !== user?.id) {
-            setIsIncomingCall(true);
-            setCallPartner(updatedMessage.sender_id || '');
-          }
-          
-          if (updatedMessage.content?.includes('CALL_ACCEPTED')) {
-            setIsCallActive(true);
-            setIsOutgoingCall(false);
-            setIsIncomingCall(false);
-            callStartTime.current = Date.now();
-          }
-          
-          if (updatedMessage.content?.includes('CALL_ENDED')) {
-            setIsCallActive(false);
-            setIsOutgoingCall(false);
-            setIsIncomingCall(false);
-            setCallDuration(0);
+          // Filtrer les messages de signalisation WebRTC
+          if (!newMessage.content?.startsWith('WEBRTC_SIGNAL:')) {
+            setMessages(prev => [...prev, newMessage]);
           }
         }
       )
@@ -88,17 +70,6 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
       supabase.removeChannel(channel);
     };
   }, [missionId, user?.id]);
-
-  // Timer pour la durée d'appel
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isCallActive) {
-      interval = setInterval(() => {
-        setCallDuration(Math.floor((Date.now() - callStartTime.current) / 1000));
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isCallActive]);
 
   useEffect(() => {
     scrollToBottom();
@@ -117,7 +88,12 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      
+      // Filtrer les messages de signalisation WebRTC
+      const filteredMessages = (data || []).filter(
+        msg => !msg.content?.startsWith('WEBRTC_SIGNAL:')
+      );
+      setMessages(filteredMessages);
     } catch (error) {
       console.error('Erreur lors du chargement des messages:', error);
     }
@@ -127,7 +103,6 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     if (!newMessage.trim() || !user) return;
 
     try {
-      // Récupérer l'ID du destinataire
       const { data: missionData } = await supabase
         .from('service_requests')
         .select('client_id')
@@ -179,83 +154,6 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     }
   };
 
-  const startCall = async () => {
-    if (!user) return;
-
-    try {
-      const { data: missionData } = await supabase
-        .from('service_requests')
-        .select('client_id')
-        .eq('id', missionId)
-        .single();
-
-      if (!missionData) return;
-
-      setIsOutgoingCall(true);
-
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          request_id: missionId,
-          sender_id: user.id,
-          receiver_id: missionData.client_id,
-          content: 'CALL_REQUEST - Demande d\'appel'
-        });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Erreur lors du démarrage de l\'appel:', error);
-    }
-  };
-
-  const acceptCall = async () => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          request_id: missionId,
-          sender_id: user.id,
-          receiver_id: callPartner,
-          content: 'CALL_ACCEPTED - Appel accepté'
-        });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Erreur lors de l\'acceptation de l\'appel:', error);
-    }
-  };
-
-  const endCall = async () => {
-    if (!user) return;
-
-    try {
-      const { data: missionData } = await supabase
-        .from('service_requests')
-        .select('client_id')
-        .eq('id', missionId)
-        .single();
-
-      if (!missionData) return;
-
-      const receiverId = callPartner || missionData.client_id;
-
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          request_id: missionId,
-          sender_id: user.id,
-          receiver_id: receiverId,
-          content: 'CALL_ENDED - Appel terminé'
-        });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Erreur lors de la fin de l\'appel:', error);
-    }
-  };
-
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
@@ -263,11 +161,10 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     });
   };
 
-  const formatCallDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  const handleStartVideoCall = () => startCall(true);
+  const handleStartAudioCall = () => startCall(false);
+  const handleAcceptVideoCall = () => acceptCall(true);
+  const handleAcceptAudioCall = () => acceptCall(false);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -288,9 +185,14 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         {/* Boutons d'appel */}
         <div className="flex items-center space-x-2">
           {!isCallActive && !isOutgoingCall && !isIncomingCall && (
-            <Button onClick={startCall} className="bg-green-600 hover:bg-green-700 p-2">
-              <Phone className="w-5 h-5" />
-            </Button>
+            <>
+              <Button onClick={handleStartAudioCall} className="bg-green-600 hover:bg-green-700 p-2">
+                <Phone className="w-5 h-5" />
+              </Button>
+              <Button onClick={handleStartVideoCall} className="bg-blue-600 hover:bg-blue-700 p-2">
+                <Video className="w-5 h-5" />
+              </Button>
+            </>
           )}
           
           {(isCallActive || isOutgoingCall) && (
@@ -311,15 +213,15 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
             <h3 className="text-lg font-semibold mb-2">Appel entrant</h3>
             <p className="text-blue-100 mb-6">Quelqu'un vous appelle...</p>
             <div className="flex justify-center space-x-4">
-              <Button onClick={acceptCall} className="bg-green-600 hover:bg-green-700 px-8 py-3">
+              <Button onClick={handleAcceptAudioCall} className="bg-green-600 hover:bg-green-700 px-6 py-3">
                 <Phone className="w-5 h-5 mr-2" />
-                Décrocher
+                Audio
               </Button>
-              <Button 
-                onClick={() => setIsIncomingCall(false)} 
-                variant="destructive" 
-                className="px-8 py-3"
-              >
+              <Button onClick={handleAcceptVideoCall} className="bg-blue-500 hover:bg-blue-600 px-6 py-3">
+                <Video className="w-5 h-5 mr-2" />
+                Vidéo
+              </Button>
+              <Button onClick={rejectCall} variant="destructive" className="px-6 py-3">
                 <PhoneOff className="w-5 h-5 mr-2" />
                 Refuser
               </Button>
@@ -333,7 +235,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         <div className="bg-blue-600 text-white p-6">
           <div className="text-center">
             <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <Phone className="w-8 h-8" />
+              {isVideoOn ? <Video className="w-8 h-8" /> : <Phone className="w-8 h-8" />}
             </div>
             <h3 className="text-lg font-semibold mb-2">Appel en cours...</h3>
             <p className="text-blue-100 mb-6">En attente de réponse</p>
@@ -345,59 +247,56 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         </div>
       )}
 
-      {/* Interface d'appel actif */}
+      {/* Interface d'appel actif avec vidéo */}
       {isCallActive && (
-        <div className="bg-green-600 text-white p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold">Communication en cours</p>
-              <p className="text-green-100 text-sm">{formatCallDuration(callDuration)}</p>
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                onClick={() => setIsMuted(!isMuted)}
-                variant={isMuted ? "destructive" : "secondary"}
-                size="sm"
-                className="w-10 h-10 p-0"
-              >
-                {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </Button>
-              <Button
-                onClick={() => setIsVideoOn(!isVideoOn)}
-                variant={isVideoOn ? "default" : "secondary"}
-                size="sm"
-                className="w-10 h-10 p-0"
-              >
-                {isVideoOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
-              </Button>
-              <Button onClick={endCall} variant="destructive" size="sm" className="w-10 h-10 p-0">
-                <PhoneOff className="w-4 h-4" />
-              </Button>
+        <div className="flex-1 flex flex-col">
+          <div className="bg-green-600 text-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">Communication en cours</p>
+                <p className="text-green-100 text-sm">{formatCallDuration(callDuration)}</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={toggleMute}
+                  variant={isMuted ? "destructive" : "secondary"}
+                  size="sm"
+                  className="w-10 h-10 p-0"
+                >
+                  {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+                <Button
+                  onClick={toggleVideo}
+                  variant={isVideoOn ? "default" : "secondary"}
+                  size="sm"
+                  className="w-10 h-10 p-0"
+                >
+                  {isVideoOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+                </Button>
+                <Button onClick={endCall} variant="destructive" size="sm" className="w-10 h-10 p-0">
+                  <PhoneOff className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
+          
+          {/* Zone vidéo */}
+          {(isVideoOn || remoteStream) && (
+            <VideoCall
+              localStream={localStream}
+              remoteStream={remoteStream}
+              isVideoOn={isVideoOn}
+              className="flex-1 p-4"
+            />
+          )}
         </div>
       )}
 
-      {/* Note explicative */}
-      {(isCallActive || isOutgoingCall || isIncomingCall) && (
-        <div className="bg-yellow-50 border-b border-yellow-200 p-3">
-          <p className="text-yellow-800 text-xs text-center">
-            💡 Simulation d'appel - Les boutons simulent une interface d'appel réelle
-          </p>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {/* Messages (réduits pendant l'appel actif) */}
+      <div className={`${isCallActive ? 'h-32' : 'flex-1'} overflow-y-auto p-4 space-y-3`}>
         {messages.map((message) => {
           const isMyMessage = message.sender_id === user?.id;
-          const isSystemMessage = message.content?.includes('CALL_') || message.content?.includes('🤝');
-          
-          if (message.content?.includes('CALL_REQUEST') || 
-              message.content?.includes('CALL_ACCEPTED') || 
-              message.content?.includes('CALL_ENDED')) {
-            return null; // Ne pas afficher les messages système d'appel
-          }
+          const isSystemMessage = message.content?.includes('🤝');
           
           return (
             <div key={message.id} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
