@@ -80,9 +80,9 @@ export function useProviderApplications() {
               .single();
 
             if (requestData) {
-              const newApplication = {
-                ...payload.new,
-                service_request: requestData
+              const newApplication: ApplicationWithRequest = {
+                ...payload.new as MissionProposal,
+                service_request: requestData as ServiceRequest
               };
 
               setApplications(prev => {
