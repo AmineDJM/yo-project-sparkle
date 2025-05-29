@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +15,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [userType, setUserType] = useState<'client' | 'provider'>('client');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,11 @@ export default function Auth() {
           description: "Vous êtes maintenant connecté.",
         });
       } else {
+        // Validation pour l'inscription
+        if (!phone.trim()) {
+          throw new Error('Le numéro de téléphone est requis');
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -46,6 +53,7 @@ export default function Auth() {
             data: {
               full_name: fullName,
               user_type: userType,
+              phone: phone,
             },
           },
         });
@@ -56,7 +64,9 @@ export default function Auth() {
 
         toast({
           title: "Compte créé !",
-          description: "Vérifiez votre email pour confirmer votre compte.",
+          description: userType === 'provider' 
+            ? "Vérifiez votre email et attendez la validation de votre inscription." 
+            : "Vérifiez votre email pour confirmer votre compte.",
         });
       }
     } catch (error: any) {
@@ -97,11 +107,23 @@ export default function Auth() {
               {!isLogin && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Nom complet</Label>
+                    <Label htmlFor="fullName">Nom complet *</Label>
                     <Input
                       id="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Numéro de téléphone *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0123456789"
                       required
                       disabled={loading}
                     />
@@ -135,7 +157,7 @@ export default function Auth() {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -147,7 +169,7 @@ export default function Auth() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
+                <Label htmlFor="password">Mot de passe *</Label>
                 <div className="relative">
                   <Input
                     id="password"

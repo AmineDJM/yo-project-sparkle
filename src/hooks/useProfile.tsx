@@ -1,6 +1,6 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
@@ -10,65 +10,38 @@ export function useProfile() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchProfile = useCallback(async () => {
-    if (!user?.id) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      console.log('Chargement du profil pour:', user.id);
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Erreur lors du chargement du profil:', error);
-        setError('Impossible de charger le profil');
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) {
+        setProfile(null);
+        setLoading(false);
         return;
       }
 
-      if (!data) {
-        console.log('Aucun profil trouvé, création en cours...');
-        // Créer le profil s'il n'existe pas
-        const { data: newProfile, error: createError } = await supabase
+      try {
+        const { data, error } = await supabase
           .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email || '',
-            full_name: user.user_metadata?.full_name || 'Utilisateur',
-            user_type: user.user_metadata?.user_type || 'client'
-          })
-          .select()
+          .select('*')
+          .eq('id', user.id)
           .single();
 
-        if (createError) {
-          console.error('Erreur lors de la création du profil:', createError);
-          setError('Impossible de créer le profil');
-          return;
+        if (error) {
+          console.error('Erreur lors du chargement du profil:', error);
+          setProfile(null);
+        } else {
+          setProfile(data);
         }
-
-        setProfile(newProfile);
-      } else {
-        setProfile(data);
+      } catch (error) {
+        console.error('Erreur:', error);
+        setProfile(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Erreur inattendue:', err);
-      setError('Une erreur inattendue est survenue');
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    fetchProfile();
   }, [user]);
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  return { profile, loading, error, refetch: fetchProfile };
+  return { profile, loading };
 }

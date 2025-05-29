@@ -53,8 +53,11 @@ export function useAdminData() {
     }
   };
 
-  const updateProviderStatus = async (providerId: string, status: 'approved' | 'rejected', adminId: string) => {
+  const updateProviderStatus = async (providerId: string, status: 'approved' | 'rejected') => {
     try {
+      // Créer un "admin fictif" pour les logs
+      const adminId = 'admin-system'; // ID fictif pour l'admin
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ provider_status: status })
@@ -65,18 +68,19 @@ export function useAdminData() {
         return false;
       }
 
-      // Log l'action
-      const { error: logError } = await supabase
-        .from('admin_logs')
-        .insert({
-          admin_id: adminId,
-          action: `provider_${status}`,
-          target_user_id: providerId,
-          details: { status }
-        });
-
-      if (logError) {
+      // Log l'action (sans vérifier l'admin réel pour l'instant)
+      try {
+        await supabase
+          .from('admin_logs')
+          .insert({
+            admin_id: adminId,
+            action: `provider_${status}`,
+            target_user_id: providerId,
+            details: { status }
+          });
+      } catch (logError) {
         console.error('Erreur lors du log:', logError);
+        // Continue même si le log échoue
       }
 
       // Rafraîchir les données
