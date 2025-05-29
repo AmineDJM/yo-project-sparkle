@@ -8,7 +8,9 @@ import { ArrowLeft, Send, Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from '
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebRTC } from '@/hooks/useWebRTC';
+import { useInterventionConfirmations } from '@/hooks/useInterventionConfirmations';
 import VideoCall from './VideoCall';
+import InterventionConfirmationComponent from './InterventionConfirmation';
 import { Database } from '@/integrations/supabase/types';
 
 type Message = Database['public']['Tables']['messages']['Row'];
@@ -45,11 +47,19 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     formatCallDuration
   } = useWebRTC(missionId);
 
+  const {
+    confirmations,
+    loading: confirmationsLoading,
+    createConfirmationRequest,
+    respondToConfirmation
+  } = useInterventionConfirmations(missionId);
+
   useEffect(() => {
     loadMessages();
     loadReceiverId();
     
-    const channel = supabase
+    // Subscription pour les messages avec amélioration du temps réel
+    const messagesChannel = supabase
       .channel(`mission-chat-${missionId}`)
       .on(
         'postgres_changes',
@@ -64,7 +74,13 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
           console.log('💬 CHAT: Nouveau message reçu:', newMessage);
           // Filtrer les messages de signalisation WebRTC
           if (!newMessage.content?.startsWith('WEBRTC_SIGNAL:')) {
-            setMessages(prev => [...prev, newMessage]);
+            setMessages(prev => {
+              // Éviter les doublons
+              if (prev.some(msg => msg.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, newMessage];
+            });
           }
         }
       )
@@ -74,7 +90,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
 
     return () => {
       console.log('🔌 CHAT: Fermeture subscription messages');
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
     };
   }, [missionId, user?.id]);
 
@@ -201,30 +217,25 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     }
   };
 
-  const sendConfirmationRequest = async () => {
+  const handleConfirmationRequest = async () => {
     if (!user || !receiverId) return;
 
-    try {
-      console.log('🤝 CHAT: Envoi demande de confirmation');
-      
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          request_id: missionId,
-          sender_id: user.id,
-          receiver_id: receiverId,
-          content: '🤝 Je confirme l\'intervention - Êtes-vous d\'accord pour valider cette mission ?'
-        });
-
-      if (error) {
-        console.error('❌ CHAT: Erreur envoi confirmation:', error);
-        return;
-      }
-      
-      console.log('✅ CHAT: Demande de confirmation envoyée');
-    } catch (error) {
-      console.error('❌ CHAT: Erreur lors de l\'envoi de la confirmation:', error);
+    // Vérifier si une demande existe déjà
+    const existingConfirmation = confirmations.find(conf => conf.status === 'pending');
+    if (existingConfirmation) {
+      console.log('⚠️ Une demande de confirmation existe déjà');
+      return;
     }
+
+    await createConfirmationRequest(user.id, receiverId, 'Je confirme que l\'intervention est terminée. Pouvez-vous valider ?');
+  };
+
+  const handleAcceptConfirmation = (confirmationId: string) => {
+    respondToConfirmation(confirmationId, 'accepted', 'Intervention confirmée et validée');
+  };
+
+  const handleRejectConfirmation = (confirmationId: string) => {
+    respondToConfirmation(confirmationId, 'rejected', 'Intervention non validée');
   };
 
   const formatTime = (dateString: string) => {
@@ -238,6 +249,9 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
   const handleStartAudioCall = () => startCall(false);
   const handleAcceptVideoCall = () => acceptCall(true);
   const handleAcceptAudioCall = () => acceptCall(false);
+
+  const pendingConfirmation = confirmations.find(conf => conf.status === 'pending');
+  const hasConfirmationRequest = confirmations.length > 0;
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -366,9 +380,25 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         </div>
       )}
 
-      {/* Messages (réduits pendant l'appel actif) */}
+      {/* Messages et confirmations */}
       <div className={`${isCallActive ? 'h-32' : 'flex-1'} overflow-y-auto p-4 space-y-3`}>
-        {messages.length === 0 && (
+        {/* Affichage des confirmations d'intervention */}
+        {hasConfirmationRequest && (
+          <div className="space-y-3 mb-4">
+            {confirmations.map((confirmation) => (
+              <InterventionConfirmationComponent
+                key={confirmation.id}
+                confirmation={confirmation}
+                userType={userType}
+                userId={user?.id || ''}
+                onAccept={handleAcceptConfirmation}
+                onReject={handleRejectConfirmation}
+              />
+            ))}
+          </div>
+        )}
+
+        {messages.length === 0 && !hasConfirmationRequest && (
           <div className="text-center py-8">
             <p className="text-gray-500">💬 Aucun message pour l'instant</p>
             <p className="text-gray-400 text-sm">Commencez la conversation !</p>
@@ -377,20 +407,17 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         
         {messages.map((message) => {
           const isMyMessage = message.sender_id === user?.id;
-          const isSystemMessage = message.content?.includes('🤝');
           
           return (
             <div key={message.id} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                isSystemMessage 
-                  ? 'bg-blue-100 text-blue-800 text-center w-full' 
-                  : isMyMessage 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-white border'
+                isMyMessage 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white border'
               }`}>
                 <p className="text-sm">{message.content}</p>
                 <p className={`text-xs mt-1 ${
-                  isSystemMessage ? 'text-blue-600' : isMyMessage ? 'text-blue-100' : 'text-gray-500'
+                  isMyMessage ? 'text-blue-100' : 'text-gray-500'
                 }`}>
                   {formatTime(message.created_at || '')}
                 </p>
@@ -404,9 +431,9 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
       {/* Actions en bas */}
       <div className="bg-white border-t p-4 space-y-3">
         {/* Bouton de confirmation seulement pour les prestataires */}
-        {userType === 'provider' && (
+        {userType === 'provider' && !pendingConfirmation && (
           <Button 
-            onClick={sendConfirmationRequest}
+            onClick={handleConfirmationRequest}
             className="w-full bg-green-600 hover:bg-green-700"
           >
             🤝 Demander la confirmation de l'intervention
