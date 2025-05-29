@@ -122,13 +122,13 @@ export default function ProviderMessagesList() {
               <MessageCircle className="w-8 h-8 text-blue-600" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Aucune candidature
+              Aucune candidature active
             </h3>
             <p className="text-sm text-gray-600">
               Vos candidatures aux missions apparaîtront ici
             </p>
             <p className="text-xs text-gray-500 mt-2">
-              💡 Consultez les propositions pour postuler à des missions
+              💡 Les missions confirmées sont dans l'onglet "Missions"
             </p>
           </CardContent>
         </Card>

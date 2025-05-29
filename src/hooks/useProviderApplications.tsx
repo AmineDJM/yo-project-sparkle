@@ -4,10 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Database } from '@/integrations/supabase/types';
 
+type ServiceProposal = Database['public']['Tables']['service_proposals']['Row'];
 type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
-type MissionProposal = Database['public']['Tables']['mission_proposals']['Row'];
 
-interface ApplicationWithRequest extends MissionProposal {
+interface ApplicationWithRequest extends ServiceProposal {
   service_request: ServiceRequest;
 }
 
@@ -21,35 +21,49 @@ export function useProviderApplications() {
 
     const fetchApplications = async () => {
       try {
-        console.log('🔍 PROVIDER: Récupération des candidatures pour le prestataire:', user.id);
+        console.log('📋 Récupération des candidatures pour:', user.id);
         
-        // Récupérer toutes les propositions acceptées et confirmées
-        const { data, error } = await supabase
-          .from('mission_proposals')
+        // Récupérer les candidatures acceptées
+        const { data: proposals, error: proposalsError } = await supabase
+          .from('service_proposals')
           .select(`
             *,
             service_request:service_requests(*)
           `)
           .eq('provider_id', user.id)
-          .in('status', ['accepted', 'confirmed'])
+          .eq('status', 'accepted')
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('❌ PROVIDER: Erreur lors du chargement des candidatures:', error);
+        if (proposalsError) {
+          console.error('❌ Erreur lors du chargement des candidatures:', proposalsError);
           return;
         }
 
-        console.log('📊 PROVIDER: Candidatures données brutes:', data);
+        console.log('📊 Candidatures trouvées:', proposals?.length || 0);
 
-        const applicationsWithRequest = (data || []).map(item => ({
-          ...item,
-          service_request: item.service_request as ServiceRequest
-        }));
+        // Filtrer pour exclure celles qui ont une intervention confirmée
+        const applicationsWithoutConfirmedInterventions = [];
+        
+        for (const proposal of proposals || []) {
+          // Vérifier s'il y a une intervention confirmée pour cette mission
+          const { data: confirmation } = await supabase
+            .from('intervention_confirmations')
+            .select('id')
+            .eq('request_id', proposal.request_id)
+            .eq('provider_id', user.id)
+            .eq('status', 'accepted')
+            .single();
 
-        setApplications(applicationsWithRequest);
-        console.log('✅ PROVIDER: Candidatures chargées:', applicationsWithRequest.length, applicationsWithRequest);
+          // Si pas d'intervention confirmée, inclure dans les candidatures
+          if (!confirmation) {
+            applicationsWithoutConfirmedInterventions.push(proposal as ApplicationWithRequest);
+          }
+        }
+
+        setApplications(applicationsWithoutConfirmedInterventions);
+        console.log('✅ Candidatures sans intervention confirmée:', applicationsWithoutConfirmedInterventions.length);
       } catch (error) {
-        console.error('❌ PROVIDER: Erreur:', error);
+        console.error('❌ Erreur:', error);
       } finally {
         setLoading(false);
       }
@@ -57,7 +71,7 @@ export function useProviderApplications() {
 
     fetchApplications();
 
-    // Écouter les mises à jour en temps réel
+    // Écouter les nouvelles candidatures
     const channel = supabase
       .channel('provider-applications-realtime')
       .on(
@@ -65,57 +79,29 @@ export function useProviderApplications() {
         {
           event: '*',
           schema: 'public',
-          table: 'mission_proposals',
+          table: 'service_proposals',
           filter: `provider_id=eq.${user.id}`
         },
         async (payload) => {
-          console.log('🔔 PROVIDER: Changement temps réel mission_proposals:', payload);
-          
-          if ((payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') && 
-              (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
-            
-            console.log('📋 PROVIDER: Mise à jour status candidature, récupération détails...');
-            
-            // Charger les détails de la mission
-            const { data: requestData, error: requestError } = await supabase
-              .from('service_requests')
-              .select('*')
-              .eq('id', payload.new.request_id)
-              .single();
-
-            if (requestError) {
-              console.error('❌ PROVIDER: Erreur récupération service_request:', requestError);
-              return;
-            }
-
-            if (requestData) {
-              const newApplication: ApplicationWithRequest = {
-                ...payload.new as MissionProposal,
-                service_request: requestData as ServiceRequest
-              };
-
-              setApplications(prev => {
-                const exists = prev.find(app => app.id === newApplication.id);
-                if (exists) {
-                  console.log('🔄 PROVIDER: Mise à jour candidature existante');
-                  return prev.map(app => app.id === newApplication.id ? newApplication : app);
-                } else {
-                  console.log('➕ PROVIDER: Nouvelle candidature ajoutée');
-                  return [newApplication, ...prev];
-                }
-              });
-
-              console.log('🔔 PROVIDER: Candidature mise à jour:', newApplication.service_request.title, 'Status:', newApplication.status);
-            }
-          }
+          console.log('🔔 Changement candidature:', payload);
+          fetchApplications(); // Refetch pour s'assurer de la cohérence
         }
       )
-      .subscribe((status) => {
-        console.log('📡 PROVIDER: Status subscription candidatures:', status);
-      });
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'intervention_confirmations'
+        },
+        async (payload) => {
+          console.log('🔔 Changement confirmation intervention:', payload);
+          fetchApplications(); // Refetch car cela peut affecter la liste des candidatures
+        }
+      )
+      .subscribe();
 
     return () => {
-      console.log('🔌 PROVIDER: Fermeture subscription candidatures');
       supabase.removeChannel(channel);
     };
   }, [user]);

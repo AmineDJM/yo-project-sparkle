@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wrench, User, Plus, MapPin, MessageSquare, Settings, Menu, Bell, Zap } from 'lucide-react';
+import { Wrench, User, Plus, MapPin, MessageSquare, Settings, Menu, Bell, Zap, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProviderMissionsList from '@/components/ProviderMissionsList';
 import ProviderProposalsList from '@/components/ProviderProposalsList';
@@ -110,8 +110,8 @@ export default function Dashboard() {
                 size="sm"
                 onClick={() => setActiveView('messages')}
               >
-                <MessageSquare className="w-5 h-5 mb-1" />
-                <span className="text-xs">Messages</span>
+                <FileText className="w-5 h-5 mb-1" />
+                <span className="text-xs">Candidatures</span>
               </Button>
             </>
           ) : (
