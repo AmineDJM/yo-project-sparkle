@@ -6,12 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, XCircle, Clock, User, Shield, Activity, Eye } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, Shield, Activity, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const { providers, adminLogs, loading, updateProviderStatus } = useAdminData();
+  const { providers, clients, adminLogs, loading, updateProviderStatus } = useAdminData();
   const { toast } = useToast();
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -91,7 +91,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -132,10 +132,22 @@ export default function AdminDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total</p>
+                <p className="text-sm text-gray-600">Prestataires</p>
                 <p className="text-2xl font-bold text-blue-600">{providers.length}</p>
               </div>
               <User className="w-8 h-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Clients</p>
+                <p className="text-2xl font-bold text-purple-600">{clients.length}</p>
+              </div>
+              <Users className="w-8 h-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
@@ -143,7 +155,7 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="pending" className="flex items-center space-x-2">
             <Clock className="w-4 h-4" />
             <span>En attente ({pendingProviders.length})</span>
@@ -155,6 +167,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="rejected" className="flex items-center space-x-2">
             <XCircle className="w-4 h-4" />
             <span>Rejetés ({rejectedProviders.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="clients" className="flex items-center space-x-2">
+            <Users className="w-4 h-4" />
+            <span>Clients ({clients.length})</span>
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center space-x-2">
             <Activity className="w-4 h-4" />
@@ -292,6 +308,45 @@ export default function AdminDashboard() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Clients Tab */}
+        <TabsContent value="clients">
+          <Card>
+            <CardHeader>
+              <CardTitle>Liste des clients</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {clients.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  Aucun client enregistré
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nom</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Téléphone</TableHead>
+                      <TableHead>Date d'inscription</TableHead>
+                      <TableHead>Adresse</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clients.map((client) => (
+                      <TableRow key={client.id}>
+                        <TableCell className="font-medium">{client.full_name}</TableCell>
+                        <TableCell>{client.email}</TableCell>
+                        <TableCell>{client.phone || 'Non renseigné'}</TableCell>
+                        <TableCell>{formatDate(client.created_at || '')}</TableCell>
+                        <TableCell>{client.address || 'Non renseignée'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
