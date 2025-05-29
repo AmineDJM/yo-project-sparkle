@@ -21,7 +21,7 @@ export function useProviderApplications() {
 
     const fetchApplications = async () => {
       try {
-        console.log('🔍 Récupération des candidatures pour le prestataire:', user.id);
+        console.log('🔍 PROVIDER: Récupération des candidatures pour le prestataire:', user.id);
         
         // Récupérer toutes les propositions acceptées et confirmées
         const { data, error } = await supabase
@@ -35,11 +35,11 @@ export function useProviderApplications() {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('❌ Erreur lors du chargement des candidatures prestataire:', error);
+          console.error('❌ PROVIDER: Erreur lors du chargement des candidatures:', error);
           return;
         }
 
-        console.log('📊 Candidatures prestataire données brutes:', data);
+        console.log('📊 PROVIDER: Candidatures données brutes:', data);
 
         const applicationsWithRequest = (data || []).map(item => ({
           ...item,
@@ -47,9 +47,9 @@ export function useProviderApplications() {
         }));
 
         setApplications(applicationsWithRequest);
-        console.log('✅ Candidatures prestataire chargées:', applicationsWithRequest.length, applicationsWithRequest);
+        console.log('✅ PROVIDER: Candidatures chargées:', applicationsWithRequest.length, applicationsWithRequest);
       } catch (error) {
-        console.error('❌ Erreur:', error);
+        console.error('❌ PROVIDER: Erreur:', error);
       } finally {
         setLoading(false);
       }
@@ -69,10 +69,12 @@ export function useProviderApplications() {
           filter: `provider_id=eq.${user.id}`
         },
         async (payload) => {
-          console.log('🔔 Changement temps réel mission_proposals prestataire:', payload);
+          console.log('🔔 PROVIDER: Changement temps réel mission_proposals:', payload);
           
           if ((payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') && 
               (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
+            
+            console.log('📋 PROVIDER: Mise à jour status candidature, récupération détails...');
             
             // Charger les détails de la mission
             const { data: requestData, error: requestError } = await supabase
@@ -82,7 +84,7 @@ export function useProviderApplications() {
               .single();
 
             if (requestError) {
-              console.error('❌ Erreur récupération service_request:', requestError);
+              console.error('❌ PROVIDER: Erreur récupération service_request:', requestError);
               return;
             }
 
@@ -95,25 +97,25 @@ export function useProviderApplications() {
               setApplications(prev => {
                 const exists = prev.find(app => app.id === newApplication.id);
                 if (exists) {
-                  console.log('🔄 Mise à jour candidature prestataire existante');
+                  console.log('🔄 PROVIDER: Mise à jour candidature existante');
                   return prev.map(app => app.id === newApplication.id ? newApplication : app);
                 } else {
-                  console.log('➕ Nouvelle candidature prestataire ajoutée');
+                  console.log('➕ PROVIDER: Nouvelle candidature ajoutée');
                   return [newApplication, ...prev];
                 }
               });
 
-              console.log('🔔 Candidature prestataire mise à jour:', newApplication.service_request.title, 'Status:', newApplication.status);
+              console.log('🔔 PROVIDER: Candidature mise à jour:', newApplication.service_request.title, 'Status:', newApplication.status);
             }
           }
         }
       )
       .subscribe((status) => {
-        console.log('📡 Status subscription candidatures prestataire:', status);
+        console.log('📡 PROVIDER: Status subscription candidatures:', status);
       });
 
     return () => {
-      console.log('🔌 Fermeture subscription candidatures prestataire');
+      console.log('🔌 PROVIDER: Fermeture subscription candidatures');
       supabase.removeChannel(channel);
     };
   }, [user]);

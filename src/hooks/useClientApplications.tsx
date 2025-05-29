@@ -23,26 +23,46 @@ export function useClientApplications() {
 
     const fetchApplications = async () => {
       try {
-        console.log('🔍 Récupération des candidatures pour le client:', user.id);
+        console.log('🔍 CLIENT: Récupération des candidatures pour le client:', user.id);
         
-        // Récupérer toutes les candidatures pour les missions du client
+        // Récupérer d'abord toutes les missions du client
+        const { data: userMissions, error: missionsError } = await supabase
+          .from('service_requests')
+          .select('id')
+          .eq('client_id', user.id);
+
+        if (missionsError) {
+          console.error('❌ CLIENT: Erreur récupération missions:', missionsError);
+          return;
+        }
+
+        console.log('📋 CLIENT: Missions du client trouvées:', userMissions?.length || 0);
+
+        if (!userMissions || userMissions.length === 0) {
+          setApplications([]);
+          return;
+        }
+
+        const missionIds = userMissions.map(m => m.id);
+
+        // Récupérer toutes les candidatures acceptées et confirmées pour ces missions
         const { data, error } = await supabase
           .from('mission_proposals')
           .select(`
             *,
-            service_request:service_requests!inner(*),
+            service_request:service_requests(*),
             provider:profiles!mission_proposals_provider_id_fkey(*)
           `)
-          .eq('service_requests.client_id', user.id)
+          .in('request_id', missionIds)
           .in('status', ['accepted', 'confirmed'])
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('❌ Erreur lors du chargement des candidatures:', error);
+          console.error('❌ CLIENT: Erreur lors du chargement des candidatures:', error);
           return;
         }
 
-        console.log('📊 Données candidatures client brutes reçues:', data);
+        console.log('📊 CLIENT: Données candidatures brutes reçues:', data);
 
         const applicationsWithDetails = (data || []).map(item => ({
           ...item,
@@ -51,9 +71,9 @@ export function useClientApplications() {
         }));
 
         setApplications(applicationsWithDetails);
-        console.log('✅ Candidatures client chargées:', applicationsWithDetails.length, applicationsWithDetails);
+        console.log('✅ CLIENT: Candidatures chargées:', applicationsWithDetails.length, applicationsWithDetails);
       } catch (error) {
-        console.error('❌ Erreur:', error);
+        console.error('❌ CLIENT: Erreur:', error);
       } finally {
         setLoading(false);
       }
@@ -72,34 +92,47 @@ export function useClientApplications() {
           table: 'mission_proposals'
         },
         async (payload) => {
-          console.log('🔔 Changement en temps réel sur mission_proposals pour client:', payload);
+          console.log('🔔 CLIENT: Changement temps réel mission_proposals:', payload);
           
-          // Traiter les INSERT et UPDATE pour status accepted/confirmed
+          // Traiter tous les changements qui concernent les status accepted/confirmed
           if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && 
               (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
             
-            console.log('📋 Nouvelle candidature détectée, récupération des détails...');
+            console.log('📋 CLIENT: Candidature détectée, vérification si elle concerne ce client...');
+            
+            // Vérifier d'abord si cette mission appartient au client connecté
+            const { data: missionData, error: missionError } = await supabase
+              .from('service_requests')
+              .select('client_id')
+              .eq('id', payload.new.request_id)
+              .single();
+
+            if (missionError || !missionData || missionData.client_id !== user.id) {
+              console.log('📋 CLIENT: Cette candidature ne concerne pas ce client');
+              return;
+            }
+
+            console.log('📋 CLIENT: Candidature pour ce client, récupération des détails...');
             
             // Charger les détails complets de la candidature
             const { data: fullData, error: detailError } = await supabase
               .from('mission_proposals')
               .select(`
                 *,
-                service_request:service_requests!inner(*),
+                service_request:service_requests(*),
                 provider:profiles!mission_proposals_provider_id_fkey(*)
               `)
               .eq('id', payload.new.id)
               .single();
 
             if (detailError) {
-              console.error('❌ Erreur récupération détails:', detailError);
+              console.error('❌ CLIENT: Erreur récupération détails:', detailError);
               return;
             }
 
-            console.log('📋 Détails candidature récupérés:', fullData);
+            console.log('📋 CLIENT: Détails candidature récupérés:', fullData);
 
-            // Vérifier que c'est bien pour ce client
-            if (fullData && fullData.service_request?.client_id === user.id) {
+            if (fullData) {
               const newApplication: ApplicationWithDetails = {
                 ...fullData,
                 service_request: fullData.service_request as ServiceRequest,
@@ -109,32 +142,32 @@ export function useClientApplications() {
               setApplications(prev => {
                 const exists = prev.find(app => app.id === newApplication.id);
                 if (exists) {
-                  console.log('🔄 Mise à jour candidature existante');
+                  console.log('🔄 CLIENT: Mise à jour candidature existante');
                   return prev.map(app => app.id === newApplication.id ? newApplication : app);
                 } else {
-                  console.log('➕ Nouvelle candidature ajoutée pour le client');
+                  console.log('➕ CLIENT: Nouvelle candidature ajoutée');
                   return [newApplication, ...prev];
                 }
               });
 
-              console.log('🔔 Candidature client mise à jour:', newApplication.provider?.full_name, 'Status:', newApplication.status);
+              console.log('🔔 CLIENT: Candidature mise à jour:', newApplication.provider?.full_name, 'Status:', newApplication.status);
             }
           }
         }
       )
       .subscribe((status) => {
-        console.log('📡 Status subscription candidatures client:', status);
+        console.log('📡 CLIENT: Status subscription candidatures:', status);
       });
 
     return () => {
-      console.log('🔌 Fermeture subscription candidatures client');
+      console.log('🔌 CLIENT: Fermeture subscription candidatures');
       supabase.removeChannel(channel);
     };
   }, [user]);
 
   const confirmProvider = async (applicationId: string) => {
     try {
-      console.log('✅ Confirmation du prestataire:', applicationId);
+      console.log('✅ CLIENT: Confirmation du prestataire:', applicationId);
       
       const { error } = await supabase
         .from('mission_proposals')
@@ -151,9 +184,9 @@ export function useClientApplications() {
         )
       );
 
-      console.log('✅ Prestataire confirmé avec succès');
+      console.log('✅ CLIENT: Prestataire confirmé avec succès');
     } catch (error) {
-      console.error('❌ Erreur lors de la confirmation:', error);
+      console.error('❌ CLIENT: Erreur lors de la confirmation:', error);
     }
   };
 

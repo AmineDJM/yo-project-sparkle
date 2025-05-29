@@ -24,6 +24,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [receiverId, setReceiverId] = useState<string | null>(null);
+  const [userType, setUserType] = useState<'client' | 'provider' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const {
@@ -60,7 +61,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          console.log('💬 Nouveau message reçu:', newMessage);
+          console.log('💬 CHAT: Nouveau message reçu:', newMessage);
           // Filtrer les messages de signalisation WebRTC
           if (!newMessage.content?.startsWith('WEBRTC_SIGNAL:')) {
             setMessages(prev => [...prev, newMessage]);
@@ -68,11 +69,11 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         }
       )
       .subscribe((status) => {
-        console.log('📡 Status subscription messages:', status);
+        console.log('📡 CHAT: Status subscription messages:', status);
       });
 
     return () => {
-      console.log('🔌 Fermeture subscription messages');
+      console.log('🔌 CHAT: Fermeture subscription messages');
       supabase.removeChannel(channel);
     };
   }, [missionId, user?.id]);
@@ -87,9 +88,9 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
 
   const loadReceiverId = async () => {
     try {
-      console.log('🔍 Chargement du receiver ID pour mission:', missionId);
+      console.log('🔍 CHAT: Chargement du receiver ID pour mission:', missionId);
       
-      // Récupérer les informations de la mission pour déterminer le receiver
+      // Récupérer les informations de la mission
       const { data: missionData, error: missionError } = await supabase
         .from('service_requests')
         .select('client_id')
@@ -97,11 +98,11 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         .single();
 
       if (missionError) {
-        console.error('❌ Erreur mission:', missionError);
+        console.error('❌ CHAT: Erreur mission:', missionError);
         return;
       }
 
-      // Récupérer les informations de la proposition pour obtenir le provider_id
+      // Récupérer les informations de la proposition acceptée/confirmée
       const { data: proposalData, error: proposalError } = await supabase
         .from('mission_proposals')
         .select('provider_id')
@@ -110,24 +111,33 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         .single();
 
       if (proposalError) {
-        console.error('❌ Erreur proposition:', proposalError);
+        console.error('❌ CHAT: Erreur proposition:', proposalError);
         return;
       }
 
-      // Déterminer le receiver_id selon le type d'utilisateur
+      // Déterminer le type d'utilisateur et le receiver_id
       const isClient = user?.id === missionData.client_id;
-      const targetReceiverId = isClient ? proposalData.provider_id : missionData.client_id;
+      const isProvider = user?.id === proposalData.provider_id;
       
-      console.log('👤 Receiver ID déterminé:', targetReceiverId, 'User est client:', isClient);
-      setReceiverId(targetReceiverId);
+      if (isClient) {
+        setUserType('client');
+        setReceiverId(proposalData.provider_id);
+        console.log('👤 CHAT: Utilisateur = CLIENT, Receiver = PROVIDER:', proposalData.provider_id);
+      } else if (isProvider) {
+        setUserType('provider');
+        setReceiverId(missionData.client_id);
+        console.log('👤 CHAT: Utilisateur = PROVIDER, Receiver = CLIENT:', missionData.client_id);
+      } else {
+        console.error('❌ CHAT: Utilisateur non autorisé pour cette mission');
+      }
     } catch (error) {
-      console.error('❌ Erreur lors du chargement du receiver:', error);
+      console.error('❌ CHAT: Erreur lors du chargement du receiver:', error);
     }
   };
 
   const loadMessages = async () => {
     try {
-      console.log('💬 Chargement des messages pour mission:', missionId);
+      console.log('💬 CHAT: Chargement des messages pour mission:', missionId);
       
       const { data, error } = await supabase
         .from('messages')
@@ -136,11 +146,11 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('❌ Erreur chargement messages:', error);
+        console.error('❌ CHAT: Erreur chargement messages:', error);
         return;
       }
       
-      console.log('📨 Messages chargés:', data?.length || 0, data);
+      console.log('📨 CHAT: Messages chargés:', data?.length || 0, data);
       
       // Filtrer les messages de signalisation WebRTC
       const filteredMessages = (data || []).filter(
@@ -148,13 +158,13 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
       );
       setMessages(filteredMessages);
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des messages:', error);
+      console.error('❌ CHAT: Erreur lors du chargement des messages:', error);
     }
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !user || !receiverId) {
-      console.log('❌ Impossible d\'envoyer le message - manque des données:', {
+      console.log('❌ CHAT: Impossible d\'envoyer le message - manque des données:', {
         message: newMessage.trim(),
         user: !!user,
         receiverId: !!receiverId
@@ -163,7 +173,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     }
 
     try {
-      console.log('📤 Envoi du message:', {
+      console.log('📤 CHAT: Envoi du message:', {
         request_id: missionId,
         sender_id: user.id,
         receiver_id: receiverId,
@@ -180,14 +190,14 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         });
 
       if (error) {
-        console.error('❌ Erreur envoi message:', error);
+        console.error('❌ CHAT: Erreur envoi message:', error);
         return;
       }
       
-      console.log('✅ Message envoyé avec succès');
+      console.log('✅ CHAT: Message envoyé avec succès');
       setNewMessage('');
     } catch (error) {
-      console.error('❌ Erreur lors de l\'envoi du message:', error);
+      console.error('❌ CHAT: Erreur lors de l\'envoi du message:', error);
     }
   };
 
@@ -195,7 +205,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     if (!user || !receiverId) return;
 
     try {
-      console.log('🤝 Envoi demande de confirmation');
+      console.log('🤝 CHAT: Envoi demande de confirmation');
       
       const { error } = await supabase
         .from('messages')
@@ -207,13 +217,13 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         });
 
       if (error) {
-        console.error('❌ Erreur envoi confirmation:', error);
+        console.error('❌ CHAT: Erreur envoi confirmation:', error);
         return;
       }
       
-      console.log('✅ Demande de confirmation envoyée');
+      console.log('✅ CHAT: Demande de confirmation envoyée');
     } catch (error) {
-      console.error('❌ Erreur lors de l\'envoi de la confirmation:', error);
+      console.error('❌ CHAT: Erreur lors de l\'envoi de la confirmation:', error);
     }
   };
 
@@ -241,6 +251,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
             <h1 className="font-semibold text-gray-900">{missionTitle}</h1>
             <p className="text-xs text-gray-500">
               {isCallActive ? `En communication - ${formatCallDuration(callDuration)}` : 'Conversation'}
+              {userType && <span className="ml-2 text-blue-600">({userType === 'client' ? 'Client' : 'Prestataire'})</span>}
             </p>
           </div>
         </div>
