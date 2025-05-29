@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminData } from '@/hooks/useAdminData';
@@ -20,7 +19,7 @@ export default function AdminDashboard() {
     if (!user) return;
 
     setProcessingId(providerId);
-    const success = await updateProviderStatus(providerId, status, user.id);
+    const success = await updateProviderStatus(providerId, status);
     
     if (success) {
       toast({

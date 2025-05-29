@@ -53,9 +53,10 @@ export function useAdminData() {
     }
   };
 
+  // Modification de la signature de la fonction pour ne prendre que 2 paramètres
   const updateProviderStatus = async (providerId: string, status: 'approved' | 'rejected') => {
     try {
-      // Créer un "admin fictif" pour les logs
+      // Utiliser l'ID admin du système pour les logs
       const adminId = 'admin-system'; // ID fictif pour l'admin
 
       const { error: updateError } = await supabase
