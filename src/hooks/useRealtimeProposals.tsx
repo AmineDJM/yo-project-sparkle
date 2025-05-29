@@ -130,19 +130,37 @@ export function useRealtimeProposals() {
     }
   };
 
-  const acceptProposal = async (proposalId: string) => {
+  const applyToMission = async (proposalId: string) => {
     try {
-      const { error } = await supabase
+      // Récupérer les détails de la proposition
+      const proposal = proposals.find(p => p.id === proposalId);
+      if (!proposal) return;
+
+      // Marquer la proposition comme acceptée
+      const { error: proposalError } = await supabase
         .from('mission_proposals')
         .update({ status: 'accepted' })
         .eq('id', proposalId);
 
-      if (error) throw error;
+      if (proposalError) throw proposalError;
 
+      // Envoyer un message automatique au client
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          request_id: proposal.service_request.id,
+          sender_id: user!.id,
+          receiver_id: proposal.service_request.client_id,
+          content: 'Je suis disponible pour cette mission, n\'hésitez pas à m\'appeler pour discuter des détails !'
+        });
+
+      if (messageError) throw messageError;
+
+      // Retirer la proposition de la liste
       setProposals(prev => prev.filter(p => p.id !== proposalId));
-      console.log('✅ Proposition acceptée!');
+      console.log('✅ Candidature envoyée avec succès!');
     } catch (error) {
-      console.error('Erreur lors de l\'acceptation:', error);
+      console.error('Erreur lors de la candidature:', error);
     }
   };
 
@@ -156,7 +174,7 @@ export function useRealtimeProposals() {
       if (error) throw error;
 
       setProposals(prev => prev.filter(p => p.id !== proposalId));
-      console.log('❌ Proposition refusée');
+      console.log('❌ Mission refusée');
     } catch (error) {
       console.error('Erreur lors du refus:', error);
     }
@@ -165,7 +183,7 @@ export function useRealtimeProposals() {
   return {
     proposals,
     loading,
-    acceptProposal,
+    applyToMission,
     rejectProposal
   };
 }

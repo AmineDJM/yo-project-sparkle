@@ -2,7 +2,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, Euro, User, Zap, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, MapPin, Euro, User, Zap, MessageCircle, XCircle } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
 type ServiceRequest = Database['public']['Tables']['service_requests']['Row'];
@@ -15,11 +15,11 @@ interface ProposalWithRequest extends MissionProposal {
 
 interface ProposalCardProps {
   proposal: ProposalWithRequest;
-  onAccept: (proposalId: string) => void;
+  onApply: (proposalId: string) => void;
   onReject: (proposalId: string) => void;
 }
 
-export default function ProposalCard({ proposal, onAccept, onReject }: ProposalCardProps) {
+export default function ProposalCard({ proposal, onApply, onReject }: ProposalCardProps) {
   const { service_request: mission, timeLeft } = proposal;
 
   const formatTime = (seconds: number) => {
@@ -142,14 +142,14 @@ export default function ProposalCard({ proposal, onAccept, onReject }: ProposalC
             className="border-red-300 text-red-600 hover:bg-red-50 font-medium py-3 rounded-xl"
           >
             <XCircle className="w-5 h-5 mr-2" />
-            Refuser
+            Refuser la mission
           </Button>
           <Button 
-            onClick={() => onAccept(proposal.id)}
-            className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl"
+            onClick={() => onApply(proposal.id)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl"
           >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Accepter
+            <MessageCircle className="w-5 h-5 mr-2" />
+            Postuler
           </Button>
         </div>
       </CardContent>

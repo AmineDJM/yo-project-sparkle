@@ -6,7 +6,7 @@ import { useRealtimeProposals } from '@/hooks/useRealtimeProposals';
 import ProposalCard from './ProposalCard';
 
 export default function ProviderProposalsList() {
-  const { proposals, loading, acceptProposal, rejectProposal } = useRealtimeProposals();
+  const { proposals, loading, applyToMission, rejectProposal } = useRealtimeProposals();
 
   if (loading) {
     return (
@@ -32,7 +32,7 @@ export default function ProviderProposalsList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900">
-          Propositions
+          Propositions de missions
         </h2>
         {proposals.length > 0 && (
           <Badge className="bg-red-600 text-white animate-pulse">
@@ -53,7 +53,7 @@ export default function ProviderProposalsList() {
               En attente de propositions...
             </h3>
             <p className="text-sm text-gray-600">
-              Les nouvelles propositions apparaîtront ici
+              Les nouvelles propositions de missions apparaîtront ici
             </p>
             <div className="flex justify-center mt-4">
               <div className="flex space-x-1">
@@ -72,7 +72,7 @@ export default function ProviderProposalsList() {
           <ProposalCard
             key={proposal.id}
             proposal={proposal}
-            onAccept={acceptProposal}
+            onApply={applyToMission}
             onReject={rejectProposal}
           />
         ))}
