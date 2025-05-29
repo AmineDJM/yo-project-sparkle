@@ -403,13 +403,15 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
 
       {/* Actions en bas */}
       <div className="bg-white border-t p-4 space-y-3">
-        {/* Bouton de confirmation */}
-        <Button 
-          onClick={sendConfirmationRequest}
-          className="w-full bg-green-600 hover:bg-green-700"
-        >
-          🤝 Demander la confirmation de l'intervention
-        </Button>
+        {/* Bouton de confirmation seulement pour les prestataires */}
+        {userType === 'provider' && (
+          <Button 
+            onClick={sendConfirmationRequest}
+            className="w-full bg-green-600 hover:bg-green-700"
+          >
+            🤝 Demander la confirmation de l'intervention
+          </Button>
+        )}
 
         {/* Input de message */}
         <div className="flex space-x-2">
