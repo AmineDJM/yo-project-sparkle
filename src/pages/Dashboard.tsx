@@ -39,22 +39,32 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
+      console.log('Dashboard: User logged in:', user.email);
       fetchProfile();
       fetchRequests();
     }
   }, [user]);
 
   const fetchProfile = async () => {
+    if (!user) return;
+    
     try {
+      console.log('Fetching profile for user:', user.id);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user?.id)
+        .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile fetch error:', error);
+        throw error;
+      }
+      
+      console.log('Profile fetched successfully:', data);
       setProfile(data);
     } catch (error: any) {
+      console.error('Error fetching profile:', error);
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -64,19 +74,30 @@ export default function Dashboard() {
   };
 
   const fetchRequests = async () => {
+    if (!user) return;
+    
     try {
+      console.log('Fetching requests for user:', user.id);
       let query = supabase.from('service_requests').select('*');
       
+      // Pour les clients, ne montrer que leurs demandes
+      // Pour les prestataires, montrer toutes les demandes disponibles
       if (profile?.user_type === 'client') {
-        query = query.eq('client_id', user?.id);
+        query = query.eq('client_id', user.id);
       }
       
       query = query.order('created_at', { ascending: false });
       
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Requests fetch error:', error);
+        throw error;
+      }
+      
+      console.log('Requests fetched successfully:', data?.length || 0, 'requests');
       setRequests(data || []);
     } catch (error: any) {
+      console.error('Error fetching requests:', error);
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -112,7 +133,14 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -129,7 +157,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <Avatar>
-                <AvatarFallback>{profile?.full_name?.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{profile?.full_name?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
               <Button variant="ghost" size="sm" onClick={signOut}>
                 <LogOut className="w-4 h-4" />
@@ -143,7 +171,7 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Bonjour {profile?.full_name} 👋
+            Bonjour {profile?.full_name || 'Utilisateur'} 👋
           </h2>
           <p className="text-gray-600">
             {profile?.user_type === 'client' 
@@ -180,6 +208,14 @@ export default function Dashboard() {
                     : 'Aucune mission disponible'
                   }
                 </p>
+                {profile?.user_type === 'client' && (
+                  <Button 
+                    className="mt-4" 
+                    onClick={() => window.location.href = '/new-request'}
+                  >
+                    Créer ma première demande
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -194,7 +230,7 @@ export default function Dashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 mb-3">{request.description}</p>
+                  <p className="text-gray-600 mb-3 line-clamp-2">{request.description}</p>
                   <div className="flex flex-wrap gap-2 text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <MapPin className="w-4 h-4" />

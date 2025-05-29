@@ -10,6 +10,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Wrench, User } from 'lucide-react';
 
+// Fonction de nettoyage de l'état d'authentification
+const cleanupAuthState = () => {
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
+
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,21 +37,43 @@ export default function Auth() {
     setLoading(true);
 
     try {
+      console.log('Attempting sign in for:', email);
+      
+      // Clean up existing state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out before sign in failed (this is OK):', err);
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
       
       if (data.user) {
+        console.log('Sign in successful:', data.user.email);
+        toast({
+          title: "Connexion réussie !",
+          description: "Vous êtes maintenant connecté.",
+        });
+        // Force page reload for clean state
         window.location.href = '/';
       }
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
         variant: "destructive",
         title: "Erreur de connexion",
-        description: error.message,
+        description: error.message || "Une erreur est survenue lors de la connexion",
       });
     } finally {
       setLoading(false);
@@ -49,31 +85,49 @@ export default function Auth() {
     setLoading(true);
 
     try {
+      console.log('Attempting sign up for:', email, 'as', userType);
+      
+      // Clean up existing state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out before sign up failed (this is OK):', err);
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
             user_type: userType,
           },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign up error:', error);
+        throw error;
+      }
 
       if (data.user) {
+        console.log('Sign up successful:', data.user.email);
         toast({
           title: "Compte créé !",
           description: "Vous pouvez maintenant vous connecter.",
         });
+        // Force page reload for clean state
         window.location.href = '/';
       }
     } catch (error: any) {
+      console.error('Sign up error:', error);
       toast({
         variant: "destructive",
         title: "Erreur d'inscription",
-        description: error.message,
+        description: error.message || "Une erreur est survenue lors de l'inscription",
       });
     } finally {
       setLoading(false);
@@ -106,6 +160,7 @@ export default function Auth() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="votre@email.com"
                     required
                   />
                 </div>
@@ -116,6 +171,7 @@ export default function Auth() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
                     required
                   />
                 </div>
@@ -133,6 +189,7 @@ export default function Auth() {
                     id="fullName"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Jean Dupont"
                     required
                   />
                 </div>
@@ -143,6 +200,7 @@ export default function Auth() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="votre@email.com"
                     required
                   />
                 </div>
@@ -153,7 +211,9 @@ export default function Auth() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
                     required
+                    minLength={6}
                   />
                 </div>
                 <div className="space-y-3">
