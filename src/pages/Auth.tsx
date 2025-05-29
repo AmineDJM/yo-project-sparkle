@@ -97,8 +97,7 @@ export default function Auth() {
     try {
       console.log('Tentative d\'inscription pour:', email, 'en tant que', userType);
       
-      // Première étape: créer le compte utilisateur
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -109,74 +108,33 @@ export default function Auth() {
         },
       });
 
-      if (authError) {
-        console.error('Erreur d\'inscription auth:', authError);
+      if (error) {
+        console.error('Erreur d\'inscription:', error);
         let errorMessage = "Une erreur est survenue lors de l'inscription";
         
-        if (authError.message.includes('User already registered')) {
+        if (error.message.includes('User already registered')) {
           errorMessage = "Un compte existe déjà avec cet email";
-        } else if (authError.message.includes('Password should be at least')) {
+        } else if (error.message.includes('Password should be at least')) {
           errorMessage = "Le mot de passe doit contenir au moins 6 caractères";
-        } else if (authError.message.includes('Invalid email')) {
+        } else if (error.message.includes('Invalid email')) {
           errorMessage = "Adresse email invalide";
         }
         
         throw new Error(errorMessage);
       }
 
-      if (authData.user) {
-        console.log('Utilisateur créé avec succès:', authData.user.id);
+      if (data.user) {
+        console.log('Utilisateur créé avec succès:', data.user.id);
         
-        // Attendre un peu pour que le trigger se déclenche
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Vérifier si le profil a été créé par le trigger
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .maybeSingle();
-
-        if (profileCheckError) {
-          console.error('Erreur lors de la vérification du profil:', profileCheckError);
-        }
-
-        // Si le profil n'existe pas, le créer manuellement
-        if (!existingProfile) {
-          console.log('Création manuelle du profil utilisateur...');
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              email: authData.user.email || email.trim(),
-              full_name: fullName.trim(),
-              user_type: userType
-            });
-
-          if (profileError) {
-            console.error('Erreur lors de la création du profil:', profileError);
-            toast({
-              variant: "destructive",
-              title: "Erreur",
-              description: "Compte créé mais erreur lors de la création du profil. Veuillez contacter le support.",
-            });
-            return;
-          } else {
-            console.log('Profil créé manuellement avec succès');
-          }
-        } else {
-          console.log('Profil créé automatiquement par le trigger');
-        }
-
         toast({
           title: "Inscription réussie !",
-          description: authData.session 
+          description: data.session 
             ? "Vous êtes maintenant connecté." 
             : "Veuillez vérifier votre email pour confirmer votre compte.",
         });
         
-        // Rediriger vers la page principale
-        if (authData.session) {
+        // Rediriger vers la page principale si connecté automatiquement
+        if (data.session) {
           window.location.href = '/';
         }
       }
