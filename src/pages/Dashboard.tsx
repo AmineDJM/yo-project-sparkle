@@ -1,3 +1,4 @@
+
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import ProviderMissionsList from '@/components/ProviderMissionsList';
 import ProviderProposalsList from '@/components/ProviderProposalsList';
 import ProviderMessagesList from '@/components/ProviderMessagesList';
+import ClientMissionsList from '@/components/ClientMissionsList';
+import ClientApplicationsList from '@/components/ClientApplicationsList';
 import { useState } from 'react';
 
 export default function Dashboard() {
@@ -73,7 +76,7 @@ export default function Dashboard() {
         {isProvider ? (
           <ProviderDashboard profile={profile} activeView={activeView} setActiveView={setActiveView} />
         ) : (
-          <ClientDashboard profile={profile} navigate={navigate} />
+          <ClientDashboard profile={profile} navigate={navigate} activeView={activeView} setActiveView={setActiveView} />
         )}
       </div>
 
@@ -112,7 +115,12 @@ export default function Dashboard() {
             </>
           ) : (
             <>
-              <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
+              <Button 
+                variant={activeView === 'missions' ? 'default' : 'ghost'} 
+                className="flex flex-col items-center p-2 h-auto" 
+                size="sm"
+                onClick={() => setActiveView('missions')}
+              >
                 <MapPin className="w-5 h-5 mb-1" />
                 <span className="text-xs">Missions</span>
               </Button>
@@ -122,7 +130,12 @@ export default function Dashboard() {
               >
                 <Plus className="w-6 h-6 text-white" />
               </Button>
-              <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
+              <Button 
+                variant={activeView === 'messages' ? 'default' : 'ghost'} 
+                className="flex flex-col items-center p-2 h-auto" 
+                size="sm"
+                onClick={() => setActiveView('messages')}
+              >
                 <MessageSquare className="w-5 h-5 mb-1" />
                 <span className="text-xs">Messages</span>
               </Button>
@@ -138,7 +151,21 @@ export default function Dashboard() {
   );
 }
 
-function ClientDashboard({ profile, navigate }: { profile: any; navigate: any }) {
+function ClientDashboard({ profile, navigate, activeView, setActiveView }: { 
+  profile: any; 
+  navigate: any;
+  activeView: 'proposals' | 'missions' | 'messages';
+  setActiveView: (view: 'proposals' | 'missions' | 'messages') => void;
+}) {
+  if (activeView === 'missions') {
+    return <ClientMissionsList />;
+  }
+
+  if (activeView === 'messages') {
+    return <ClientApplicationsList />;
+  }
+
+  // Vue par défaut (dashboard principal)
   return (
     <div className="p-4 space-y-4">
       {/* Message de bienvenue */}
@@ -176,7 +203,10 @@ function ClientDashboard({ profile, navigate }: { profile: any; navigate: any })
         </Card>
 
         {/* Mes missions */}
-        <Card className="cursor-pointer hover:shadow-md transition-all active:scale-95">
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all active:scale-95"
+          onClick={() => setActiveView('missions')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -185,7 +215,7 @@ function ClientDashboard({ profile, navigate }: { profile: any; navigate: any })
                 </div>
                 <div>
                   <h3 className="font-medium">Mes missions</h3>
-                  <p className="text-sm text-gray-500">0 mission active</p>
+                  <p className="text-sm text-gray-500">Gérer vos demandes</p>
                 </div>
               </div>
             </div>
@@ -193,7 +223,10 @@ function ClientDashboard({ profile, navigate }: { profile: any; navigate: any })
         </Card>
 
         {/* Messages */}
-        <Card className="cursor-pointer hover:shadow-md transition-all active:scale-95">
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all active:scale-95"
+          onClick={() => setActiveView('messages')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -201,36 +234,11 @@ function ClientDashboard({ profile, navigate }: { profile: any; navigate: any })
                   <MessageSquare className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Messages</h3>
-                  <p className="text-sm text-gray-500">Aucun message</p>
+                  <h3 className="font-medium">Candidatures</h3>
+                  <p className="text-sm text-gray-500">Voir les prestataires intéressés</p>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Missions récentes */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide px-1">
-          Historique
-        </h3>
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MapPin className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="font-medium text-gray-900 mb-2">Aucune mission</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Commencez par poster votre première mission !
-            </p>
-            <Button 
-              onClick={() => navigate('/new-request')}
-              className="bg-blue-600 hover:bg-blue-700"
-              size="sm"
-            >
-              Poster une mission
-            </Button>
           </CardContent>
         </Card>
       </div>
