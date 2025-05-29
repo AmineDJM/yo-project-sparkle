@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, AlertCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { InterventionConfirmation } from '@/hooks/useInterventionConfirmations';
 
 interface InterventionConfirmationProps {
@@ -102,22 +102,29 @@ export default function InterventionConfirmationComponent({
         )}
 
         {canRespond && (
-          <div className="flex space-x-2">
-            <Button 
-              onClick={() => onAccept(confirmation.id)}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Accepter l'intervention
-            </Button>
-            <Button 
-              onClick={() => onReject(confirmation.id)}
-              variant="destructive"
-              className="flex-1"
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              Refuser
-            </Button>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-700 font-medium">
+              Le prestataire demande votre confirmation. L'intervention est-elle terminée à votre satisfaction ?
+            </p>
+            <div className="flex space-x-3">
+              <Button 
+                onClick={() => onAccept(confirmation.id)}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                size="lg"
+              >
+                <ThumbsUp className="w-5 h-5 mr-2" />
+                OUI - Valider l'intervention
+              </Button>
+              <Button 
+                onClick={() => onReject(confirmation.id)}
+                variant="destructive"
+                className="flex-1"
+                size="lg"
+              >
+                <ThumbsDown className="w-5 h-5 mr-2" />
+                NON - Refuser
+              </Button>
+            </div>
           </div>
         )}
 

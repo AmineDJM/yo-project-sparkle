@@ -27,6 +27,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
   const [newMessage, setNewMessage] = useState('');
   const [receiverId, setReceiverId] = useState<string | null>(null);
   const [userType, setUserType] = useState<'client' | 'provider' | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const {
@@ -179,22 +180,40 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user || !receiverId) {
+    if (!newMessage.trim() || !user || !receiverId || isLoading) {
       console.log('❌ CHAT: Impossible d\'envoyer le message - manque des données:', {
         message: newMessage.trim(),
         user: !!user,
-        receiverId: !!receiverId
+        receiverId: !!receiverId,
+        isLoading
       });
       return;
     }
+
+    setIsLoading(true);
+    const messageContent = newMessage.trim();
 
     try {
       console.log('📤 CHAT: Envoi du message:', {
         request_id: missionId,
         sender_id: user.id,
         receiver_id: receiverId,
-        content: newMessage
+        content: messageContent
       });
+
+      // Ajouter le message immédiatement à l'interface pour une sensation temps réel
+      const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
+        request_id: missionId,
+        sender_id: user.id,
+        receiver_id: receiverId,
+        content: messageContent,
+        created_at: new Date().toISOString(),
+        media_url: null
+      };
+
+      setMessages(prev => [...prev, optimisticMessage]);
+      setNewMessage('');
 
       const { error } = await supabase
         .from('messages')
@@ -202,18 +221,25 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
           request_id: missionId,
           sender_id: user.id,
           receiver_id: receiverId,
-          content: newMessage
+          content: messageContent
         });
 
       if (error) {
         console.error('❌ CHAT: Erreur envoi message:', error);
+        // Supprimer le message optimiste en cas d'erreur
+        setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+        setNewMessage(messageContent); // Remettre le texte dans l'input
         return;
       }
       
       console.log('✅ CHAT: Message envoyé avec succès');
-      setNewMessage('');
     } catch (error) {
       console.error('❌ CHAT: Erreur lors de l\'envoi du message:', error);
+      // Supprimer le message optimiste en cas d'erreur
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      setNewMessage(messageContent); // Remettre le texte dans l'input
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -407,12 +433,13 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         
         {messages.map((message) => {
           const isMyMessage = message.sender_id === user?.id;
+          const isOptimistic = message.id.startsWith('temp-');
           
           return (
             <div key={message.id} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                 isMyMessage 
-                  ? 'bg-blue-600 text-white' 
+                  ? `bg-blue-600 text-white ${isOptimistic ? 'opacity-70' : ''}` 
                   : 'bg-white border'
               }`}>
                 <p className="text-sm">{message.content}</p>
@@ -420,6 +447,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
                   isMyMessage ? 'text-blue-100' : 'text-gray-500'
                 }`}>
                   {formatTime(message.created_at || '')}
+                  {isOptimistic && <span className="ml-1">⏳</span>}
                 </p>
               </div>
             </div>
@@ -436,7 +464,7 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
             onClick={handleConfirmationRequest}
             className="w-full bg-green-600 hover:bg-green-700"
           >
-            🤝 Demander la confirmation de l'intervention
+            ✅ Demander la confirmation de l'intervention
           </Button>
         )}
 
@@ -446,10 +474,15 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Tapez votre message..."
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
             className="flex-1"
+            disabled={isLoading}
           />
-          <Button onClick={sendMessage} className="bg-blue-600 hover:bg-blue-700">
+          <Button 
+            onClick={sendMessage} 
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={isLoading || !newMessage.trim()}
+          >
             <Send className="w-4 h-4" />
           </Button>
         </div>
