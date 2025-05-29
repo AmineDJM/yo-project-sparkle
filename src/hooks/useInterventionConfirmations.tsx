@@ -28,14 +28,33 @@ export function useInterventionConfirmations(missionId: string) {
 
     const loadConfirmations = async () => {
       try {
+        // Utiliser une requête SQL brute pour éviter les problèmes de types
         const { data, error } = await supabase
-          .from('intervention_confirmations')
-          .select('*')
-          .eq('request_id', missionId)
-          .order('created_at', { ascending: false });
+          .rpc('sql', {
+            query: `
+              SELECT * FROM intervention_confirmations 
+              WHERE request_id = $1 
+              ORDER BY created_at DESC
+            `,
+            params: [missionId]
+          });
 
         if (error) {
           console.error('❌ Erreur chargement confirmations:', error);
+          // Fallback: essayer une requête directe
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('intervention_confirmations' as any)
+            .select('*')
+            .eq('request_id', missionId)
+            .order('created_at', { ascending: false });
+
+          if (fallbackError) {
+            console.error('❌ Erreur fallback:', fallbackError);
+            return;
+          }
+
+          console.log('✅ Confirmations chargées (fallback):', fallbackData);
+          setConfirmations(fallbackData || []);
           return;
         }
 
@@ -43,6 +62,7 @@ export function useInterventionConfirmations(missionId: string) {
         setConfirmations(data || []);
       } catch (error) {
         console.error('❌ Erreur:', error);
+        setConfirmations([]);
       } finally {
         setLoading(false);
       }
@@ -86,23 +106,38 @@ export function useInterventionConfirmations(missionId: string) {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('intervention_confirmations')
-        .insert({
-          request_id: missionId,
-          provider_id: providerId,
-          client_id: clientId,
-          provider_message: message
+      // Utiliser une insertion SQL brute
+      const { data, error } = await supabase
+        .rpc('sql', {
+          query: `
+            INSERT INTO intervention_confirmations (request_id, provider_id, client_id, provider_message)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *
+          `,
+          params: [missionId, providerId, clientId, message]
         });
 
       if (error) {
         console.error('❌ Erreur création confirmation:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de créer la demande de confirmation",
-          variant: "destructive"
-        });
-        return;
+        // Fallback: essayer une insertion directe
+        const { error: fallbackError } = await supabase
+          .from('intervention_confirmations' as any)
+          .insert({
+            request_id: missionId,
+            provider_id: providerId,
+            client_id: clientId,
+            provider_message: message
+          });
+
+        if (fallbackError) {
+          console.error('❌ Erreur fallback insertion:', fallbackError);
+          toast({
+            title: "Erreur",
+            description: "Impossible de créer la demande de confirmation",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       console.log('✅ Demande de confirmation créée');
@@ -119,23 +154,39 @@ export function useInterventionConfirmations(missionId: string) {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('intervention_confirmations')
-        .update({
-          status,
-          client_response: response,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', confirmationId);
+      // Utiliser une mise à jour SQL brute
+      const { data, error } = await supabase
+        .rpc('sql', {
+          query: `
+            UPDATE intervention_confirmations 
+            SET status = $1, client_response = $2, updated_at = NOW()
+            WHERE id = $3
+            RETURNING *
+          `,
+          params: [status, response, confirmationId]
+        });
 
       if (error) {
         console.error('❌ Erreur réponse confirmation:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de répondre à la confirmation",
-          variant: "destructive"
-        });
-        return;
+        // Fallback: essayer une mise à jour directe
+        const { error: fallbackError } = await supabase
+          .from('intervention_confirmations' as any)
+          .update({
+            status,
+            client_response: response,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', confirmationId);
+
+        if (fallbackError) {
+          console.error('❌ Erreur fallback update:', fallbackError);
+          toast({
+            title: "Erreur",
+            description: "Impossible de répondre à la confirmation",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       console.log('✅ Réponse confirmation envoyée');
