@@ -69,19 +69,26 @@ export default function NewRequest() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('service_requests').insert({
+      const requestData = {
         client_id: user.id,
         title,
         description,
-        category,
-        urgency,
+        category: category as any,
+        urgency: urgency as any,
         address,
         latitude: 0, // Would be set from geolocation
         longitude: 0, // Would be set from geolocation
         estimated_budget: estimatedBudget ? parseFloat(estimatedBudget) : null,
-      });
+      };
 
-      if (error) throw error;
+      console.log('Submitting request data:', requestData);
+
+      const { error } = await supabase.from('service_requests').insert(requestData);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast({
         title: "Demande créée !",
@@ -91,6 +98,7 @@ export default function NewRequest() {
       // Redirect to dashboard
       window.location.href = '/';
     } catch (error: any) {
+      console.error('Error creating request:', error);
       toast({
         variant: "destructive",
         title: "Erreur",
