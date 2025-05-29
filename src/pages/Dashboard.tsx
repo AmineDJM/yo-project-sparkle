@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wrench, User, Plus, MapPin, MessageSquare, Settings } from 'lucide-react';
+import { Wrench, User, Plus, MapPin, MessageSquare, Settings, Menu, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProviderMissionsList from '@/components/ProviderMissionsList';
 
@@ -16,8 +16,8 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Chargement de votre profil...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-sm">Chargement...</p>
         </div>
       </div>
     );
@@ -25,10 +25,10 @@ export default function Dashboard() {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Profil introuvable'}</p>
-          <Button onClick={() => window.location.reload()}>Réessayer</Button>
+          <p className="text-red-600 mb-4 text-sm">{error || 'Profil introuvable'}</p>
+          <Button onClick={() => window.location.reload()} size="sm">Réessayer</Button>
         </div>
       </div>
     );
@@ -38,37 +38,34 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+      {/* Mobile Header */}
+      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="px-4 py-3">
+          <div className="flex justify-between items-center">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mr-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
                 <Wrench className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-blue-900">Homi</h1>
+              <div>
+                <h1 className="text-lg font-bold text-blue-900">Homi</h1>
+                <p className="text-xs text-gray-600">
+                  {isProvider ? 'Prestataire' : 'Client'}
+                </p>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Bonjour, {profile.full_name}
-              </span>
-              <Button variant="outline" size="sm" onClick={signOut}>
-                Déconnexion
+            <div className="flex items-center space-x-3">
+              <Button variant="ghost" size="sm" className="p-2">
+                <Bell className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={signOut} className="p-2">
+                <Menu className="w-5 h-5" />
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* User type badge */}
-        <div className="mb-6">
-          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-            {isProvider ? <Wrench className="w-4 h-4 mr-1" /> : <User className="w-4 h-4 mr-1" />}
-            {isProvider ? 'Prestataire' : 'Client'}
-          </div>
-        </div>
-
+      <div className="pb-20">
         {/* Main content */}
         {isProvider ? (
           <ProviderDashboard profile={profile} />
@@ -76,131 +73,141 @@ export default function Dashboard() {
           <ClientDashboard profile={profile} navigate={navigate} />
         )}
       </div>
+
+      {/* Bottom Navigation pour mobile */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-50">
+        <div className="flex justify-around items-center">
+          <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
+            <MapPin className="w-5 h-5 mb-1" />
+            <span className="text-xs">Missions</span>
+          </Button>
+          <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
+            <MessageSquare className="w-5 h-5 mb-1" />
+            <span className="text-xs">Messages</span>
+          </Button>
+          {!isProvider && (
+            <Button 
+              onClick={() => navigate('/new-request')}
+              className="bg-blue-600 hover:bg-blue-700 rounded-full w-14 h-14 p-0"
+            >
+              <Plus className="w-6 h-6 text-white" />
+            </Button>
+          )}
+          <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
+            <Settings className="w-5 h-5 mb-1" />
+            <span className="text-xs">Profil</span>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
 
 function ClientDashboard({ profile, navigate }: { profile: any; navigate: any }) {
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Poster une mission */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/new-request')}>
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <Plus className="w-5 h-5 mr-2 text-blue-600" />
-              Poster une mission
-            </CardTitle>
-            <CardDescription>
-              Décrivez votre besoin et trouvez un prestataire
-            </CardDescription>
-          </CardHeader>
+    <div className="p-4 space-y-4">
+      {/* Message de bienvenue */}
+      <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+        <h2 className="text-lg font-semibold text-blue-900 mb-1">
+          Bonjour {profile.full_name?.split(' ')[0]} ! 👋
+        </h2>
+        <p className="text-blue-700 text-sm">
+          Besoin d'aide à domicile ? Trouvez un prestataire près de chez vous.
+        </p>
+      </div>
+
+      {/* Actions rapides */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide px-1">
+          Actions rapides
+        </h3>
+        
+        {/* Poster une mission - Action principale */}
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all active:scale-95 border-2 border-blue-200 bg-blue-50" 
+          onClick={() => navigate('/new-request')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mr-4">
+                <Plus className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900">Poster une mission</h3>
+                <p className="text-sm text-blue-700">Trouvez un prestataire rapidement</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Mes missions */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <MapPin className="w-5 h-5 mr-2 text-green-600" />
-              Mes missions
-            </CardTitle>
-            <CardDescription>
-              Suivez l'avancement de vos demandes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500">0 mission active</p>
+        <Card className="cursor-pointer hover:shadow-md transition-all active:scale-95">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                  <MapPin className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium">Mes missions</h3>
+                  <p className="text-sm text-gray-500">0 mission active</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Messages */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <MessageSquare className="w-5 h-5 mr-2 text-purple-600" />
-              Messages
-            </CardTitle>
-            <CardDescription>
-              Communiquez avec vos prestataires
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500">Aucun message</p>
+        <Card className="cursor-pointer hover:shadow-md transition-all active:scale-95">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                  <MessageSquare className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium">Messages</h3>
+                  <p className="text-sm text-gray-500">Aucun message</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Missions récentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Missions récentes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-500 text-center py-8">
-            Aucune mission pour le moment. Commencez par poster votre première mission !
-          </p>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide px-1">
+          Historique
+        </h3>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MapPin className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="font-medium text-gray-900 mb-2">Aucune mission</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Commencez par poster votre première mission !
+            </p>
+            <Button 
+              onClick={() => navigate('/new-request')}
+              className="bg-blue-600 hover:bg-blue-700"
+              size="sm"
+            >
+              Poster une mission
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
 function ProviderDashboard({ profile }: { profile: any }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Missions en temps réel - Vue principale pour les prestataires */}
       <ProviderMissionsList />
-      
-      {/* Actions rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Mes candidatures */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <Wrench className="w-5 h-5 mr-2 text-green-600" />
-              Mes candidatures
-            </CardTitle>
-            <CardDescription>
-              Suivez vos propositions de service
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500">0 candidature</p>
-          </CardContent>
-        </Card>
-
-        {/* Messages */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <MessageSquare className="w-5 h-5 mr-2 text-purple-600" />
-              Messages
-            </CardTitle>
-            <CardDescription>
-              Communiquez avec vos clients
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500">Aucun message</p>
-          </CardContent>
-        </Card>
-
-        {/* Mon profil */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <Settings className="w-5 h-5 mr-2 text-purple-600" />
-              Mon profil
-            </CardTitle>
-            <CardDescription>
-              Gérez vos informations et services
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500">Profil à compléter</p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

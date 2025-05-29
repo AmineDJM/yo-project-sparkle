@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Camera, MapPin, Navigation } from 'lucide-react';
+import { ArrowLeft, Camera, MapPin, Navigation, Euro } from 'lucide-react';
 
 export default function NewRequest() {
   const { user } = useAuth();
@@ -25,21 +25,21 @@ export default function NewRequest() {
   const { toast } = useToast();
 
   const categories = [
-    { value: 'plomberie', label: 'Plomberie' },
-    { value: 'electricite', label: 'Électricité' },
-    { value: 'serrurerie', label: 'Serrurerie' },
-    { value: 'demenagement', label: 'Déménagement' },
-    { value: 'menage', label: 'Ménage' },
-    { value: 'jardinage', label: 'Jardinage' },
-    { value: 'bricolage', label: 'Bricolage' },
-    { value: 'autre', label: 'Autre' },
+    { value: 'plomberie', label: '🔧 Plomberie', emoji: '🔧' },
+    { value: 'electricite', label: '⚡ Électricité', emoji: '⚡' },
+    { value: 'serrurerie', label: '🔑 Serrurerie', emoji: '🔑' },
+    { value: 'demenagement', label: '📦 Déménagement', emoji: '📦' },
+    { value: 'menage', label: '🧹 Ménage', emoji: '🧹' },
+    { value: 'jardinage', label: '🌱 Jardinage', emoji: '🌱' },
+    { value: 'bricolage', label: '🔨 Bricolage', emoji: '🔨' },
+    { value: 'autre', label: '⚙️ Autre', emoji: '⚙️' },
   ];
 
   const urgencyLevels = [
-    { value: 'low', label: 'Faible' },
-    { value: 'medium', label: 'Moyen' },
-    { value: 'high', label: 'Élevé' },
-    { value: 'urgent', label: 'Urgent' },
+    { value: 'low', label: 'Faible', color: 'text-green-600' },
+    { value: 'medium', label: 'Moyen', color: 'text-yellow-600' },
+    { value: 'high', label: 'Élevé', color: 'text-orange-600' },
+    { value: 'urgent', label: '🚨 Urgent', color: 'text-red-600' },
   ];
 
   const getCurrentLocation = () => {
@@ -61,11 +61,10 @@ export default function NewRequest() {
         setCoordinates({ lat: latitude, lng: longitude });
         
         // Dans une vraie application, on utiliserait un service de géocodage inversé
-        // Pour la démo, on affiche les coordonnées
-        setAddress(`Position actuelle (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+        setAddress(`📍 Position détectée (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
         
         toast({
-          title: "Position détectée",
+          title: "📍 Position détectée",
           description: "Votre position a été ajoutée à la demande",
         });
         setLocationLoading(false);
@@ -75,7 +74,7 @@ export default function NewRequest() {
         toast({
           variant: "destructive",
           title: "Erreur de géolocalisation",
-          description: "Impossible d'obtenir votre position. Veuillez saisir votre adresse manuellement.",
+          description: "Impossible d'obtenir votre position. Saisissez votre adresse manuellement.",
         });
         setLocationLoading(false);
       },
@@ -124,8 +123,8 @@ export default function NewRequest() {
       }
 
       toast({
-        title: "Demande créée !",
-        description: "Votre demande a été envoyée aux prestataires de la zone",
+        title: "🎉 Mission publiée !",
+        description: "Les prestataires de votre zone vont recevoir votre demande",
       });
 
       // Redirect to dashboard
@@ -144,146 +143,196 @@ export default function NewRequest() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
+      {/* Mobile Header */}
+      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="px-4 py-3">
+          <div className="flex items-center">
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => window.location.href = '/'}
-              className="mr-4"
+              className="mr-3 p-2"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-bold text-gray-900">Nouvelle demande</h1>
+            <h1 className="text-lg font-bold text-gray-900">Nouvelle mission</h1>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Décrivez votre besoin</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="title">Titre de la demande</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ex: Fuite d'eau sous l'évier"
-                  required
-                />
+      <div className="p-4 pb-20">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Titre */}
+          <Card>
+            <CardContent className="p-4">
+              <Label htmlFor="title" className="text-sm font-medium text-gray-700 mb-2 block">
+                Titre de votre demande
+              </Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ex: Fuite d'eau sous l'évier"
+                required
+                className="text-base"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Catégorie */}
+          <Card>
+            <CardContent className="p-4">
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                Catégorie
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                {categories.map((cat) => (
+                  <Button
+                    key={cat.value}
+                    type="button"
+                    variant={category === cat.value ? "default" : "outline"}
+                    onClick={() => setCategory(cat.value)}
+                    className="h-auto p-3 text-left justify-start"
+                  >
+                    <span className="text-lg mr-2">{cat.emoji}</span>
+                    <span className="text-sm">{cat.label.replace(cat.emoji + ' ', '')}</span>
+                  </Button>
+                ))}
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="category">Catégorie</Label>
-                <Select value={category} onValueChange={setCategory} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez une catégorie" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {/* Description */}
+          <Card>
+            <CardContent className="p-4">
+              <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 block">
+                Description détaillée
+              </Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Décrivez votre problème en détail..."
+                rows={4}
+                required
+                className="text-base resize-none"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Urgence */}
+          <Card>
+            <CardContent className="p-4">
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                Niveau d'urgence
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                {urgencyLevels.map((level) => (
+                  <Button
+                    key={level.value}
+                    type="button"
+                    variant={urgency === level.value ? "default" : "outline"}
+                    onClick={() => setUrgency(level.value)}
+                    className={`h-auto p-3 text-left justify-start ${
+                      urgency === level.value ? '' : level.color
+                    }`}
+                  >
+                    <span className="text-sm font-medium">{level.label}</span>
+                  </Button>
+                ))}
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Description détaillée</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Décrivez le problème en détail..."
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="urgency">Urgence</Label>
-                <Select value={urgency} onValueChange={setUrgency}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {urgencyLevels.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">Adresse</Label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      id="address"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Saisissez votre adresse complète"
-                      required
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={getCurrentLocation}
-                      disabled={locationLoading}
-                      className="px-3"
-                    >
-                      {locationLoading ? (
-                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                      ) : (
-                        <Navigation className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    🔒 Votre adresse exacte ne sera visible qu'après acceptation de votre demande
-                  </div>
+          {/* Localisation */}
+          <Card>
+            <CardContent className="p-4">
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                Votre adresse
+              </Label>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Saisissez votre adresse complète"
+                    required
+                    className="text-base flex-1"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={getCurrentLocation}
+                    disabled={locationLoading}
+                    className="px-3 flex-shrink-0"
+                  >
+                    {locationLoading ? (
+                      <div className="w-5 h-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                    ) : (
+                      <Navigation className="w-5 h-5" />
+                    )}
+                  </Button>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-700 flex items-center">
+                    🔒 <span className="ml-1">Votre adresse exacte ne sera visible qu'après acceptation</span>
+                  </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="budget">Budget estimé (optionnel)</Label>
+          {/* Budget */}
+          <Card>
+            <CardContent className="p-4">
+              <Label htmlFor="budget" className="text-sm font-medium text-gray-700 mb-2 block">
+                Budget estimé (optionnel)
+              </Label>
+              <div className="relative">
+                <Euro className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                   id="budget"
                   type="number"
                   value={estimatedBudget}
                   onChange={(e) => setEstimatedBudget(e.target.value)}
-                  placeholder="Ex: 150"
+                  placeholder="150"
+                  className="pl-10 text-base"
                 />
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label>Photos/Vidéos (bientôt disponible)</Label>
-                <Button type="button" variant="outline" className="w-full" disabled>
-                  <Camera className="w-4 h-4 mr-2" />
-                  Ajouter des médias
-                </Button>
-              </div>
-
-              <Button 
-                type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-700" 
-                disabled={loading}
-              >
-                {loading ? 'Envoi...' : 'Publier la demande'}
+          {/* Photos (bientôt) */}
+          <Card className="opacity-60">
+            <CardContent className="p-4">
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                Photos/Vidéos
+              </Label>
+              <Button type="button" variant="outline" className="w-full h-12" disabled>
+                <Camera className="w-5 h-5 mr-2" />
+                Ajouter des médias (bientôt)
               </Button>
-            </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </form>
+      </div>
+
+      {/* Fixed bottom button */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
+        <Button 
+          onClick={handleSubmit}
+          className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-base font-medium rounded-xl" 
+          disabled={loading}
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="w-5 h-5 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+              Publication...
+            </div>
+          ) : (
+            '🚀 Publier ma mission'
+          )}
+        </Button>
       </div>
     </div>
   );
