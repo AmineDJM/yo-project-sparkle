@@ -32,6 +32,7 @@ export function useProfile() {
         setProfile(null);
         setError(supabaseError.message);
       } else {
+        console.log('Profil chargé:', data);
         setProfile(data);
         setError(null);
       }
@@ -46,6 +47,33 @@ export function useProfile() {
 
   useEffect(() => {
     fetchProfile();
+
+    // Écouter les changements en temps réel du profil utilisateur
+    if (user) {
+      console.log('Configuration de l\'écoute temps réel pour le profil:', user.id);
+      
+      const profileChannel = supabase
+        .channel(`profile-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Changement de profil détecté:', payload.new);
+            setProfile(payload.new as Profile);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('Nettoyage de l\'écoute temps réel du profil');
+        supabase.removeChannel(profileChannel);
+      };
+    }
   }, [user]);
 
   // Ajouter la fonction refetch pour pouvoir actualiser les données du profil
