@@ -71,13 +71,20 @@ export function useProviderApplications() {
         async (payload) => {
           console.log('🔔 Changement temps réel mission_proposals prestataire:', payload);
           
-          if (payload.eventType === 'UPDATE' && (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
+          if ((payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') && 
+              (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
+            
             // Charger les détails de la mission
-            const { data: requestData } = await supabase
+            const { data: requestData, error: requestError } = await supabase
               .from('service_requests')
               .select('*')
               .eq('id', payload.new.request_id)
               .single();
+
+            if (requestError) {
+              console.error('❌ Erreur récupération service_request:', requestError);
+              return;
+            }
 
             if (requestData) {
               const newApplication: ApplicationWithRequest = {

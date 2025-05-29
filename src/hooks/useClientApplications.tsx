@@ -42,7 +42,7 @@ export function useClientApplications() {
           return;
         }
 
-        console.log('📊 Données brutes reçues:', data);
+        console.log('📊 Données candidatures client brutes reçues:', data);
 
         const applicationsWithDetails = (data || []).map(item => ({
           ...item,
@@ -72,11 +72,16 @@ export function useClientApplications() {
           table: 'mission_proposals'
         },
         async (payload) => {
-          console.log('🔔 Changement en temps réel sur mission_proposals:', payload);
+          console.log('🔔 Changement en temps réel sur mission_proposals pour client:', payload);
           
-          if (payload.eventType === 'UPDATE' && (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
+          // Traiter les INSERT et UPDATE pour status accepted/confirmed
+          if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && 
+              (payload.new.status === 'accepted' || payload.new.status === 'confirmed')) {
+            
+            console.log('📋 Nouvelle candidature détectée, récupération des détails...');
+            
             // Charger les détails complets de la candidature
-            const { data: fullData } = await supabase
+            const { data: fullData, error: detailError } = await supabase
               .from('mission_proposals')
               .select(`
                 *,
@@ -86,10 +91,16 @@ export function useClientApplications() {
               .eq('id', payload.new.id)
               .single();
 
-            console.log('📋 Détails candidature mise à jour:', fullData);
+            if (detailError) {
+              console.error('❌ Erreur récupération détails:', detailError);
+              return;
+            }
 
+            console.log('📋 Détails candidature récupérés:', fullData);
+
+            // Vérifier que c'est bien pour ce client
             if (fullData && fullData.service_request?.client_id === user.id) {
-              const newApplication = {
+              const newApplication: ApplicationWithDetails = {
                 ...fullData,
                 service_request: fullData.service_request as ServiceRequest,
                 provider: fullData.provider as Profile
@@ -101,22 +112,22 @@ export function useClientApplications() {
                   console.log('🔄 Mise à jour candidature existante');
                   return prev.map(app => app.id === newApplication.id ? newApplication : app);
                 } else {
-                  console.log('➕ Nouvelle candidature ajoutée');
+                  console.log('➕ Nouvelle candidature ajoutée pour le client');
                   return [newApplication, ...prev];
                 }
               });
 
-              console.log('🔔 Candidature mise à jour:', newApplication.provider?.full_name, 'Status:', newApplication.status);
+              console.log('🔔 Candidature client mise à jour:', newApplication.provider?.full_name, 'Status:', newApplication.status);
             }
           }
         }
       )
       .subscribe((status) => {
-        console.log('📡 Status subscription candidatures:', status);
+        console.log('📡 Status subscription candidatures client:', status);
       });
 
     return () => {
-      console.log('🔌 Fermeture subscription candidatures');
+      console.log('🔌 Fermeture subscription candidatures client');
       supabase.removeChannel(channel);
     };
   }, [user]);
