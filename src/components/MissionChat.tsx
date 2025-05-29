@@ -27,7 +27,9 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(false);
   const [callPartner, setCallPartner] = useState<string>('');
+  const [callDuration, setCallDuration] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const callStartTime = useRef<number>(0);
 
   useEffect(() => {
     loadMessages();
@@ -69,12 +71,14 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
             setIsCallActive(true);
             setIsOutgoingCall(false);
             setIsIncomingCall(false);
+            callStartTime.current = Date.now();
           }
           
           if (updatedMessage.content?.includes('CALL_ENDED')) {
             setIsCallActive(false);
             setIsOutgoingCall(false);
             setIsIncomingCall(false);
+            setCallDuration(0);
           }
         }
       )
@@ -84,6 +88,17 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
       supabase.removeChannel(channel);
     };
   }, [missionId, user?.id]);
+
+  // Timer pour la durée d'appel
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isCallActive) {
+      interval = setInterval(() => {
+        setCallDuration(Math.floor((Date.now() - callStartTime.current) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isCallActive]);
 
   useEffect(() => {
     scrollToBottom();
@@ -248,6 +263,12 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     });
   };
 
+  const formatCallDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
@@ -258,43 +279,69 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
           </Button>
           <div>
             <h1 className="font-semibold text-gray-900">{missionTitle}</h1>
-            <p className="text-xs text-gray-500">Conversation</p>
+            <p className="text-xs text-gray-500">
+              {isCallActive ? `En communication - ${formatCallDuration(callDuration)}` : 'Conversation'}
+            </p>
           </div>
         </div>
         
-        {/* Bouton d'appel */}
-        {!isCallActive && !isOutgoingCall && !isIncomingCall && (
-          <Button onClick={startCall} className="bg-green-600 hover:bg-green-700 p-2">
-            <Phone className="w-5 h-5" />
-          </Button>
-        )}
+        {/* Boutons d'appel */}
+        <div className="flex items-center space-x-2">
+          {!isCallActive && !isOutgoingCall && !isIncomingCall && (
+            <Button onClick={startCall} className="bg-green-600 hover:bg-green-700 p-2">
+              <Phone className="w-5 h-5" />
+            </Button>
+          )}
+          
+          {(isCallActive || isOutgoingCall) && (
+            <Button onClick={endCall} variant="destructive" className="p-2">
+              <PhoneOff className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Interface d'appel entrant */}
       {isIncomingCall && (
-        <div className="bg-blue-600 text-white p-4 text-center">
-          <p className="mb-3">📞 Appel entrant...</p>
-          <div className="flex justify-center space-x-3">
-            <Button onClick={acceptCall} className="bg-green-600 hover:bg-green-700">
-              <Phone className="w-4 h-4 mr-2" />
-              Accepter
-            </Button>
-            <Button onClick={() => setIsIncomingCall(false)} variant="destructive">
-              <PhoneOff className="w-4 h-4 mr-2" />
-              Refuser
-            </Button>
+        <div className="bg-blue-600 text-white p-6">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Phone className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Appel entrant</h3>
+            <p className="text-blue-100 mb-6">Quelqu'un vous appelle...</p>
+            <div className="flex justify-center space-x-4">
+              <Button onClick={acceptCall} className="bg-green-600 hover:bg-green-700 px-8 py-3">
+                <Phone className="w-5 h-5 mr-2" />
+                Décrocher
+              </Button>
+              <Button 
+                onClick={() => setIsIncomingCall(false)} 
+                variant="destructive" 
+                className="px-8 py-3"
+              >
+                <PhoneOff className="w-5 h-5 mr-2" />
+                Refuser
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Interface d'appel sortant */}
       {isOutgoingCall && (
-        <div className="bg-blue-600 text-white p-4 text-center">
-          <p className="mb-3">📞 Appel en cours...</p>
-          <Button onClick={endCall} variant="destructive">
-            <PhoneOff className="w-4 h-4 mr-2" />
-            Raccrocher
-          </Button>
+        <div className="bg-blue-600 text-white p-6">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <Phone className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Appel en cours...</h3>
+            <p className="text-blue-100 mb-6">En attente de réponse</p>
+            <Button onClick={endCall} variant="destructive" className="px-8 py-3">
+              <PhoneOff className="w-5 h-5 mr-2" />
+              Annuler
+            </Button>
+          </div>
         </div>
       )}
 
@@ -302,12 +349,16 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
       {isCallActive && (
         <div className="bg-green-600 text-white p-4">
           <div className="flex items-center justify-between">
-            <p>📞 En communication</p>
+            <div>
+              <p className="font-semibold">Communication en cours</p>
+              <p className="text-green-100 text-sm">{formatCallDuration(callDuration)}</p>
+            </div>
             <div className="flex space-x-2">
               <Button
                 onClick={() => setIsMuted(!isMuted)}
                 variant={isMuted ? "destructive" : "secondary"}
                 size="sm"
+                className="w-10 h-10 p-0"
               >
                 {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </Button>
@@ -315,14 +366,24 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
                 onClick={() => setIsVideoOn(!isVideoOn)}
                 variant={isVideoOn ? "default" : "secondary"}
                 size="sm"
+                className="w-10 h-10 p-0"
               >
                 {isVideoOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
               </Button>
-              <Button onClick={endCall} variant="destructive" size="sm">
+              <Button onClick={endCall} variant="destructive" size="sm" className="w-10 h-10 p-0">
                 <PhoneOff className="w-4 h-4" />
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Note explicative */}
+      {(isCallActive || isOutgoingCall || isIncomingCall) && (
+        <div className="bg-yellow-50 border-b border-yellow-200 p-3">
+          <p className="text-yellow-800 text-xs text-center">
+            💡 Simulation d'appel - Les boutons simulent une interface d'appel réelle
+          </p>
         </div>
       )}
 
@@ -360,11 +421,12 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Bouton de confirmation */}
-      <div className="bg-white border-t p-4">
+      {/* Actions en bas */}
+      <div className="bg-white border-t p-4 space-y-3">
+        {/* Bouton de confirmation */}
         <Button 
           onClick={sendConfirmationRequest}
-          className="w-full bg-green-600 hover:bg-green-700 mb-3"
+          className="w-full bg-green-600 hover:bg-green-700"
         >
           🤝 Demander la confirmation de l'intervention
         </Button>
