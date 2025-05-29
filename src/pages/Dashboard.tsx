@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wrench, User, Plus, MapPin, MessageSquare, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ProviderMissionsList from '@/components/ProviderMissionsList';
 
 export default function Dashboard() {
   const { signOut } = useAuth();
@@ -147,23 +148,11 @@ function ClientDashboard({ profile, navigate }: { profile: any; navigate: any })
 function ProviderDashboard({ profile }: { profile: any }) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Missions disponibles */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <MapPin className="w-5 h-5 mr-2 text-blue-600" />
-              Missions à proximité
-            </CardTitle>
-            <CardDescription>
-              Trouvez des missions près de chez vous
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500">0 mission disponible</p>
-          </CardContent>
-        </Card>
-
+      {/* Missions en temps réel - Vue principale pour les prestataires */}
+      <ProviderMissionsList />
+      
+      {/* Actions rapides */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Mes candidatures */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <CardHeader>
@@ -177,6 +166,22 @@ function ProviderDashboard({ profile }: { profile: any }) {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-500">0 candidature</p>
+          </CardContent>
+        </Card>
+
+        {/* Messages */}
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
+              <MessageSquare className="w-5 h-5 mr-2 text-purple-600" />
+              Messages
+            </CardTitle>
+            <CardDescription>
+              Communiquez avec vos clients
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-500">Aucun message</p>
           </CardContent>
         </Card>
 
@@ -196,18 +201,6 @@ function ProviderDashboard({ profile }: { profile: any }) {
           </CardContent>
         </Card>
       </div>
-
-      {/* Missions en cours */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Missions en cours</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-500 text-center py-8">
-            Aucune mission en cours. Consultez les missions disponibles pour commencer !
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
