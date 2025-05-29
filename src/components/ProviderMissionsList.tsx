@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRealtimeMissions } from '@/hooks/useRealtimeMissions';
 import MissionCard from './MissionCard';
 import ProviderStatusToggle from './ProviderStatusToggle';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Wifi, WifiOff, Zap } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { MapPin, WifiOff, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function ProviderMissionsList() {
@@ -35,7 +35,7 @@ export default function ProviderMissionsList() {
 
   const handleAcceptMission = (missionId: string) => {
     console.log('Postuler pour la mission:', missionId);
-    // TODO: Implémenter la logique de candidature
+    // Note: Maintenant les missions sont proposées automatiquement via le système de propositions
   };
 
   return (
@@ -46,7 +46,7 @@ export default function ProviderMissionsList() {
       {/* Status en temps réel */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-gray-900">
-          Missions live
+          Toutes les missions
         </h2>
         <div className="flex items-center gap-2">
           <Badge variant={isOnline ? "default" : "secondary"} className="text-xs">
@@ -81,7 +81,7 @@ export default function ProviderMissionsList() {
               Vous êtes hors ligne
             </h3>
             <p className="text-sm text-gray-600">
-              Activez votre statut pour recevoir des missions
+              Activez votre statut pour recevoir des propositions
             </p>
           </CardContent>
         </Card>
@@ -132,6 +132,9 @@ export default function ProviderMissionsList() {
             </Card>
           ) : (
             <div className="space-y-3">
+              <p className="text-xs text-gray-500 px-2">
+                💡 Les missions vous sont automatiquement proposées selon votre proximité
+              </p>
               {missions.map((mission) => (
                 <MissionCard
                   key={mission.id}

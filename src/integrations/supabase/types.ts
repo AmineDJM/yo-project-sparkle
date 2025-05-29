@@ -61,6 +61,51 @@ export type Database = {
           },
         ]
       }
+      mission_proposals: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          provider_id: string
+          request_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          provider_id: string
+          request_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          provider_id?: string
+          request_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_proposals_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_proposals_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
@@ -259,7 +304,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_distance: {
+        Args: { lat1: number; lng1: number; lat2: number; lng2: number }
+        Returns: number
+      }
+      expire_old_proposals: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      propose_mission_to_nearest_providers: {
+        Args: { request_id_param: string }
+        Returns: undefined
+      }
     }
     Enums: {
       request_status:

@@ -1,16 +1,18 @@
-
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wrench, User, Plus, MapPin, MessageSquare, Settings, Menu, Bell } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Wrench, User, Plus, MapPin, MessageSquare, Settings, Menu, Bell, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProviderMissionsList from '@/components/ProviderMissionsList';
+import ProviderProposalsList from '@/components/ProviderProposalsList';
+import { useState } from 'react';
 
 export default function Dashboard() {
   const { signOut } = useAuth();
   const { profile, loading, error } = useProfile();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'proposals' | 'missions'>('proposals');
 
   if (loading) {
     return (
@@ -68,7 +70,7 @@ export default function Dashboard() {
       <div className="pb-20">
         {/* Main content */}
         {isProvider ? (
-          <ProviderDashboard profile={profile} />
+          <ProviderDashboard profile={profile} activeTab={activeTab} setActiveTab={setActiveTab} />
         ) : (
           <ClientDashboard profile={profile} navigate={navigate} />
         )}
@@ -77,22 +79,45 @@ export default function Dashboard() {
       {/* Bottom Navigation pour mobile */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-50">
         <div className="flex justify-around items-center">
-          <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
-            <MapPin className="w-5 h-5 mb-1" />
-            <span className="text-xs">Missions</span>
-          </Button>
+          {isProvider ? (
+            <>
+              <Button 
+                variant={activeTab === 'proposals' ? 'default' : 'ghost'} 
+                className="flex flex-col items-center p-2 h-auto" 
+                size="sm"
+                onClick={() => setActiveTab('proposals')}
+              >
+                <Zap className="w-5 h-5 mb-1" />
+                <span className="text-xs">Propositions</span>
+              </Button>
+              <Button 
+                variant={activeTab === 'missions' ? 'default' : 'ghost'} 
+                className="flex flex-col items-center p-2 h-auto" 
+                size="sm"
+                onClick={() => setActiveTab('missions')}
+              >
+                <MapPin className="w-5 h-5 mb-1" />
+                <span className="text-xs">Missions</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
+                <MapPin className="w-5 h-5 mb-1" />
+                <span className="text-xs">Missions</span>
+              </Button>
+              <Button 
+                onClick={() => navigate('/new-request')}
+                className="bg-blue-600 hover:bg-blue-700 rounded-full w-14 h-14 p-0"
+              >
+                <Plus className="w-6 h-6 text-white" />
+              </Button>
+            </>
+          )}
           <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
             <MessageSquare className="w-5 h-5 mb-1" />
             <span className="text-xs">Messages</span>
           </Button>
-          {!isProvider && (
-            <Button 
-              onClick={() => navigate('/new-request')}
-              className="bg-blue-600 hover:bg-blue-700 rounded-full w-14 h-14 p-0"
-            >
-              <Plus className="w-6 h-6 text-white" />
-            </Button>
-          )}
           <Button variant="ghost" className="flex flex-col items-center p-2 h-auto" size="sm">
             <Settings className="w-5 h-5 mb-1" />
             <span className="text-xs">Profil</span>
@@ -203,11 +228,18 @@ function ClientDashboard({ profile, navigate }: { profile: any; navigate: any })
   );
 }
 
-function ProviderDashboard({ profile }: { profile: any }) {
+function ProviderDashboard({ profile, activeTab, setActiveTab }: { 
+  profile: any; 
+  activeTab: 'proposals' | 'missions';
+  setActiveTab: (tab: 'proposals' | 'missions') => void;
+}) {
   return (
     <div className="space-y-4">
-      {/* Missions en temps réel - Vue principale pour les prestataires */}
-      <ProviderMissionsList />
+      {activeTab === 'proposals' ? (
+        <ProviderProposalsList />
+      ) : (
+        <ProviderMissionsList />
+      )}
     </div>
   );
 }
