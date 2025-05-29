@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { Database } from '@/integrations/supabase/types';
+
+type InterventionConfirmationRow = Database['public']['Tables']['intervention_confirmations']['Row'];
 
 export interface InterventionConfirmation {
   id: string;
@@ -41,7 +44,12 @@ export function useInterventionConfirmations(missionId: string) {
         }
 
         console.log('✅ Confirmations chargées:', data);
-        setConfirmations(data || []);
+        // Type cast the data to match our interface
+        const typedConfirmations: InterventionConfirmation[] = (data || []).map(item => ({
+          ...item,
+          status: item.status as 'pending' | 'accepted' | 'rejected'
+        }));
+        setConfirmations(typedConfirmations);
       } catch (error) {
         console.error('❌ Erreur:', error);
         setConfirmations([]);
@@ -67,12 +75,22 @@ export function useInterventionConfirmations(missionId: string) {
           console.log('🔄 Confirmation mise à jour:', payload);
           
           if (payload.eventType === 'INSERT') {
-            setConfirmations(prev => [payload.new as InterventionConfirmation, ...prev]);
+            const newConfirmation: InterventionConfirmation = {
+              ...payload.new as InterventionConfirmationRow,
+              status: (payload.new as InterventionConfirmationRow).status as 'pending' | 'accepted' | 'rejected'
+            };
+            setConfirmations(prev => [newConfirmation, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             setConfirmations(prev => 
-              prev.map(conf => 
-                conf.id === payload.new.id ? payload.new as InterventionConfirmation : conf
-              )
+              prev.map(conf => {
+                if (conf.id === payload.new.id) {
+                  return {
+                    ...payload.new as InterventionConfirmationRow,
+                    status: (payload.new as InterventionConfirmationRow).status as 'pending' | 'accepted' | 'rejected'
+                  };
+                }
+                return conf;
+              })
             );
           }
         }
