@@ -193,6 +193,17 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
     setIsLoading(true);
     const messageContent = newMessage.trim();
 
+    // Déclarer optimisticMessage au niveau supérieur pour qu'elle soit accessible partout
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      request_id: missionId,
+      sender_id: user.id,
+      receiver_id: receiverId,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      media_url: null
+    };
+
     try {
       console.log('📤 CHAT: Envoi du message:', {
         request_id: missionId,
@@ -202,16 +213,6 @@ export default function MissionChat({ missionId, missionTitle, onBack }: Mission
       });
 
       // Ajouter le message immédiatement à l'interface pour une sensation temps réel
-      const optimisticMessage: Message = {
-        id: `temp-${Date.now()}`,
-        request_id: missionId,
-        sender_id: user.id,
-        receiver_id: receiverId,
-        content: messageContent,
-        created_at: new Date().toISOString(),
-        media_url: null
-      };
-
       setMessages(prev => [...prev, optimisticMessage]);
       setNewMessage('');
 
