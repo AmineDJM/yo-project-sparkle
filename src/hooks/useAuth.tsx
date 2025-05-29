@@ -12,101 +12,50 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Fonction de nettoyage de l'état d'authentification
-const cleanupAuthState = () => {
-  console.log('Cleaning up auth state...');
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-  Object.keys(sessionStorage || {}).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      sessionStorage.removeItem(key);
-    }
-  });
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('Initializing auth provider...');
+    console.log('Initialisation du fournisseur d\'authentification...');
     
-    // Set up auth state listener FIRST
+    // Configurer l'écouteur d'état d'authentification EN PREMIER
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.email);
+        console.log('Changement d\'état d\'authentification:', event, session?.user?.email);
         
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Créer le profil utilisateur s'il n'existe pas
-          try {
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .maybeSingle();
-
-            if (profileError && profileError.code !== 'PGRST116') {
-              console.error('Error checking profile:', profileError);
-            }
-
-            if (!profile) {
-              console.log('Creating user profile...');
-              const { error: insertError } = await supabase
-                .from('profiles')
-                .insert({
-                  id: session.user.id,
-                  email: session.user.email || '',
-                  full_name: session.user.user_metadata?.full_name || 'Utilisateur',
-                  user_type: session.user.user_metadata?.user_type || 'client'
-                });
-
-              if (insertError) {
-                console.error('Error creating profile:', insertError);
-              } else {
-                console.log('Profile created successfully');
-              }
-            }
-          } catch (error) {
-            console.error('Error handling user profile:', error);
-          }
-        }
-
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
-    // THEN check for existing session
+    // ENSUITE vérifier la session existante
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.email);
+      console.log('Vérification de session initiale:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     return () => {
-      console.log('Cleaning up auth subscription...');
+      console.log('Nettoyage de l\'abonnement d\'authentification...');
       subscription.unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
     try {
-      console.log('Signing out...');
+      console.log('Déconnexion...');
       setLoading(true);
-      cleanupAuthState();
-      await supabase.auth.signOut({ scope: 'global' });
+      await supabase.auth.signOut();
       setUser(null);
       setSession(null);
       window.location.href = '/auth';
     } catch (error) {
-      console.error('Error signing out:', error);
-      // Force navigation even if signOut fails
+      console.error('Erreur lors de la déconnexion:', error);
+      // Forcer la navigation même si la déconnexion échoue
       setUser(null);
       setSession(null);
       window.location.href = '/auth';

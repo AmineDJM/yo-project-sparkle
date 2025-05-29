@@ -10,21 +10,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Wrench, User } from 'lucide-react';
 
-// Fonction de nettoyage de l'état d'authentification
-const cleanupAuthState = () => {
-  console.log('Cleaning up auth state before action...');
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-  Object.keys(sessionStorage || {}).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      sessionStorage.removeItem(key);
-    }
-  });
-};
-
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,26 +32,15 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      console.log('Attempting sign in for:', email);
+      console.log('Tentative de connexion pour:', email);
       
-      // Clean up existing state
-      cleanupAuthState();
-      
-      // Attempt global sign out first
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-        console.log('Previous session cleared');
-      } catch (err) {
-        console.log('No previous session to clear');
-      }
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('Erreur de connexion:', error);
         let errorMessage = "Une erreur est survenue lors de la connexion";
         
         if (error.message.includes('Invalid login credentials')) {
@@ -79,18 +53,15 @@ export default function Auth() {
       }
       
       if (data.user) {
-        console.log('Sign in successful:', data.user.email);
+        console.log('Connexion réussie:', data.user.email);
         toast({
           title: "Connexion réussie !",
           description: "Vous êtes maintenant connecté.",
         });
-        // Delay navigation to ensure auth state is updated
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 1000);
+        window.location.href = '/';
       }
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      console.error('Erreur de connexion:', error);
       toast({
         variant: "destructive",
         title: "Erreur de connexion",
@@ -124,21 +95,10 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      console.log('Attempting sign up for:', email, 'as', userType);
+      console.log('Tentative d\'inscription pour:', email, 'en tant que', userType);
       
-      // Clean up existing state
-      cleanupAuthState();
-      
-      // Attempt global sign out first
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-        console.log('Previous session cleared before signup');
-      } catch (err) {
-        console.log('No previous session to clear before signup');
-      }
-
-      // Create the user account
-      const { data, error } = await supabase.auth.signUp({
+      // Première étape: créer le compte utilisateur
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -149,66 +109,79 @@ export default function Auth() {
         },
       });
 
-      if (error) {
-        console.error('Sign up error:', error);
+      if (authError) {
+        console.error('Erreur d\'inscription auth:', authError);
         let errorMessage = "Une erreur est survenue lors de l'inscription";
         
-        if (error.message.includes('User already registered')) {
+        if (authError.message.includes('User already registered')) {
           errorMessage = "Un compte existe déjà avec cet email";
-        } else if (error.message.includes('Password should be at least')) {
+        } else if (authError.message.includes('Password should be at least')) {
           errorMessage = "Le mot de passe doit contenir au moins 6 caractères";
-        } else if (error.message.includes('Invalid email')) {
+        } else if (authError.message.includes('Invalid email')) {
           errorMessage = "Adresse email invalide";
-        } else if (error.message.includes('Database error')) {
-          // Try to create the profile manually
-          console.log('Database error detected, will handle profile creation manually');
         }
         
-        if (!error.message.includes('Database error')) {
-          throw new Error(errorMessage);
-        }
+        throw new Error(errorMessage);
       }
 
-      if (data.user) {
-        console.log('Sign up successful:', data.user.email);
+      if (authData.user) {
+        console.log('Utilisateur créé avec succès:', authData.user.id);
         
-        // If there was a database error, try to create the profile manually
-        if (error && error.message.includes('Database error')) {
-          console.log('Attempting manual profile creation...');
-          try {
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert({
-                id: data.user.id,
-                email: data.user.email || email.trim(),
-                full_name: fullName.trim(),
-                user_type: userType
-              });
+        // Attendre un peu pour que le trigger se déclenche
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Vérifier si le profil a été créé par le trigger
+        const { data: existingProfile, error: profileCheckError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
 
-            if (profileError) {
-              console.error('Manual profile creation failed:', profileError);
-            } else {
-              console.log('Manual profile creation successful');
-            }
-          } catch (profileErr) {
-            console.error('Error during manual profile creation:', profileErr);
+        if (profileCheckError) {
+          console.error('Erreur lors de la vérification du profil:', profileCheckError);
+        }
+
+        // Si le profil n'existe pas, le créer manuellement
+        if (!existingProfile) {
+          console.log('Création manuelle du profil utilisateur...');
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              email: authData.user.email || email.trim(),
+              full_name: fullName.trim(),
+              user_type: userType
+            });
+
+          if (profileError) {
+            console.error('Erreur lors de la création du profil:', profileError);
+            toast({
+              variant: "destructive",
+              title: "Erreur",
+              description: "Compte créé mais erreur lors de la création du profil. Veuillez contacter le support.",
+            });
+            return;
+          } else {
+            console.log('Profil créé manuellement avec succès');
           }
+        } else {
+          console.log('Profil créé automatiquement par le trigger');
         }
 
         toast({
           title: "Inscription réussie !",
-          description: data.session 
+          description: authData.session 
             ? "Vous êtes maintenant connecté." 
             : "Veuillez vérifier votre email pour confirmer votre compte.",
         });
         
-        // Delay navigation to ensure auth state is updated
-        setTimeout(() => {
+        // Rediriger vers la page principale
+        if (authData.session) {
           window.location.href = '/';
-        }, 1000);
+        }
       }
     } catch (error: any) {
-      console.error('Sign up error:', error);
+      console.error('Erreur d\'inscription:', error);
       toast({
         variant: "destructive",
         title: "Erreur d'inscription",
