@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NewRequest from "./pages/NewRequest";
+import SimpleNewRequest from "./pages/SimpleNewRequest";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -49,7 +50,7 @@ const App = () => (
             } />
             <Route path="/new-request" element={
               <ProtectedRoute>
-                <NewRequest />
+                <SimpleNewRequest />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={<Admin />} />
