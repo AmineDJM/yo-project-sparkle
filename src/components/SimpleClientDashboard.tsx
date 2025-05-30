@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -19,7 +18,7 @@ export default function SimpleClientDashboard() {
   const navigate = useNavigate();
 
   const getFontSizeClass = () => {
-    switch (profile?.font_size || 'medium') {
+    switch ((profile as any)?.font_size || 'medium') {
       case 'small': return 'text-sm';
       case 'large': return 'text-lg';
       default: return 'text-base';

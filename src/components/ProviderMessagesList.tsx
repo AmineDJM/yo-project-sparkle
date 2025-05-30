@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useProviderApplications } from '@/hooks/useProviderApplications';
-import { useChat } from '@/hooks/useChat';
+import { useChatNavigation } from '@/hooks/useChatNavigation';
 import MissionChat from './MissionChat';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,7 @@ interface ApplicationWithRequest {
 
 export default function ProviderMessagesList() {
   const { applications, loading } = useProviderApplications();
-  const { activeChat, openChat, closeChat } = useChat();
+  const { activeChat, openChat, closeChat } = useChatNavigation();
 
   // Si un chat est actif, afficher le composant de chat
   if (activeChat) {

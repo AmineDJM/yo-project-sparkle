@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { useClientApplications } from '@/hooks/useClientApplications';
-import { useChat } from '@/hooks/useChat';
+import { useChatNavigation } from '@/hooks/useChatNavigation';
 import MissionChat from './MissionChat';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +9,7 @@ import { MapPin, MessageCircle, Clock, User, Euro, CheckCircle2, Star } from 'lu
 
 export default function ClientApplicationsList() {
   const { applications, loading, confirmProvider } = useClientApplications();
-  const { activeChat, openChat, closeChat } = useChat();
+  const { activeChat, openChat, closeChat } = useChatNavigation();
 
   // Si un chat est actif, afficher le composant de chat
   if (activeChat) {

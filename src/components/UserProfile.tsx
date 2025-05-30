@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -120,7 +119,7 @@ export default function UserProfile() {
   };
 
   const getFontSizeClass = () => {
-    switch (profile?.font_size || 'medium') {
+    switch ((profile as any)?.font_size || 'medium') {
       case 'small': return 'text-sm';
       case 'large': return 'text-lg';
       default: return 'text-base';
@@ -165,21 +164,21 @@ export default function UserProfile() {
         <CardContent>
           <div className="flex space-x-2">
             <Button
-              variant={(profile?.font_size || 'medium') === 'small' ? 'default' : 'outline'}
+              variant={((profile as any)?.font_size || 'medium') === 'small' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleFontSizeChange('small')}
             >
               Petit
             </Button>
             <Button
-              variant={(profile?.font_size || 'medium') === 'medium' ? 'default' : 'outline'}
+              variant={((profile as any)?.font_size || 'medium') === 'medium' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleFontSizeChange('medium')}
             >
               Moyen
             </Button>
             <Button
-              variant={(profile?.font_size || 'medium') === 'large' ? 'default' : 'outline'}
+              variant={((profile as any)?.font_size || 'medium') === 'large' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleFontSizeChange('large')}
             >

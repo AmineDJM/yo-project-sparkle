@@ -7,10 +7,10 @@ export function useAddress() {
   const [currentAddress, setCurrentAddress] = useState('');
 
   useEffect(() => {
-    if (profile?.preferred_address) {
-      setCurrentAddress(profile.preferred_address);
+    if ((profile as any)?.preferred_address) {
+      setCurrentAddress((profile as any).preferred_address);
     }
-  }, [profile?.preferred_address]);
+  }, [(profile as any)?.preferred_address]);
 
   const updateAddress = async (address: string) => {
     setCurrentAddress(address);
@@ -24,6 +24,6 @@ export function useAddress() {
   return {
     currentAddress,
     updateAddress,
-    preferredAddress: profile?.preferred_address || ''
+    preferredAddress: (profile as any)?.preferred_address || ''
   };
 }

@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useConfirmedMissions } from '@/hooks/useConfirmedMissions';
-import { useChat } from '@/hooks/useChat';
+import { useChatNavigation } from '@/hooks/useChatNavigation';
 import MissionCard from './MissionCard';
 import MissionChat from './MissionChat';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function ProviderMissionsList() {
   const { missions, loading, isOnline } = useConfirmedMissions();
-  const { activeChat, openChat, closeChat } = useChat();
+  const { activeChat, openChat, closeChat } = useChatNavigation();
 
   // Si un chat est actif, afficher le composant de chat
   if (activeChat) {
