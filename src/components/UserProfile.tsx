@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, Phone, MapPin, Edit3, Save, X, Settings, LogOut } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Edit3, Save, X, Settings, LogOut, Type } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,6 +17,7 @@ export default function UserProfile() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
@@ -103,6 +104,14 @@ export default function UserProfile() {
     }
   };
 
+  const getFontSizeClass = () => {
+    switch (fontSize) {
+      case 'small': return 'text-sm';
+      case 'large': return 'text-lg';
+      default: return 'text-base';
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4">
@@ -121,7 +130,7 @@ export default function UserProfile() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className={`p-4 space-y-4 ${getFontSizeClass()}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900">Mon profil</h2>
@@ -129,6 +138,41 @@ export default function UserProfile() {
           {isProvider ? '🔧 Prestataire' : '👤 Client'}
         </Badge>
       </div>
+
+      {/* Réglages de police */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center text-lg">
+            <Type className="w-5 h-5 mr-3" />
+            Taille de police
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex space-x-2">
+            <Button
+              variant={fontSize === 'small' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFontSize('small')}
+            >
+              Petit
+            </Button>
+            <Button
+              variant={fontSize === 'medium' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFontSize('medium')}
+            >
+              Moyen
+            </Button>
+            <Button
+              variant={fontSize === 'large' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFontSize('large')}
+            >
+              Grand
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Profil principal */}
       <Card>

@@ -51,7 +51,7 @@ export default function SimpleNewRequest() {
 
   // États simplifiés
   const [problem, setProblem] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(location.state?.address || '');
   const [phone, setPhone] = useState('');
   const [urgency, setUrgency] = useState(location.state?.urgency || 'medium');
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
