@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +12,7 @@ import SimpleNewRequest from "./pages/SimpleNewRequest";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProviderSearchPage from "./pages/ProviderSearchPage";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +51,11 @@ const App = () => (
             <Route path="/new-request" element={
               <ProtectedRoute>
                 <SimpleNewRequest />
+              </ProtectedRoute>
+            } />
+            <Route path="/provider-search" element={
+              <ProtectedRoute>
+                <ProviderSearchPage />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={<Admin />} />

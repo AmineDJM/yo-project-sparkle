@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -136,7 +135,7 @@ export default function SimpleNewRequest() {
         estimated_budget: null,
       };
 
-      const { error } = await supabase.from('service_requests').insert(requestData);
+      const { data, error } = await supabase.from('service_requests').insert(requestData).select().single();
 
       if (error) throw error;
 
@@ -145,7 +144,13 @@ export default function SimpleNewRequest() {
         description: "Nous recherchons un prestataire pour vous",
       });
 
-      navigate('/');
+      // Rediriger vers l'écran de recherche avec l'ID de la demande
+      navigate('/provider-search', { 
+        state: { 
+          requestId: data.id,
+          requestTitle: problem 
+        } 
+      });
     } catch (error: any) {
       toast({
         variant: "destructive",

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -158,6 +157,21 @@ export default function ClientMissionsList() {
     return 'Zone non spécifiée';
   };
 
+  const handleViewDetails = (mission: ServiceRequest) => {
+    if (mission.status === 'pending') {
+      // Si la mission est en attente, aller à l'écran de recherche
+      navigate('/provider-search', {
+        state: {
+          requestId: mission.id,
+          requestTitle: mission.title
+        }
+      });
+    } else {
+      // Sinon, ouvrir le chat ou les détails
+      console.log('Voir détails mission:', mission.id);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4">
@@ -263,9 +277,13 @@ export default function ClientMissionsList() {
 
               {/* Actions */}
               <div className="flex justify-end">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleViewDetails(mission)}
+                >
                   <Eye className="w-4 h-4 mr-2" />
-                  Voir les détails
+                  {mission.status === 'pending' ? 'Voir recherche' : 'Voir les détails'}
                 </Button>
               </div>
             </CardContent>
