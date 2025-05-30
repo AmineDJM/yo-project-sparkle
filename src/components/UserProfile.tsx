@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
@@ -13,11 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function UserProfile() {
   const { user, signOut } = useAuth();
-  const { profile, loading, refetch } = useProfile();
+  const { profile, loading, refetch, updatePreferences } = useProfile();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
@@ -28,7 +27,7 @@ export default function UserProfile() {
   const isProvider = profile?.user_type === 'provider';
 
   // Initialiser le formulaire quand le profil est chargé
-  useState(() => {
+  useEffect(() => {
     if (profile && !isEditing) {
       setFormData({
         full_name: profile.full_name || '',
@@ -37,7 +36,7 @@ export default function UserProfile() {
         bio: profile.bio || ''
       });
     }
-  });
+  }, [profile, isEditing]);
 
   const handleEdit = () => {
     setFormData({
@@ -96,6 +95,22 @@ export default function UserProfile() {
     }
   };
 
+  const handleFontSizeChange = async (newSize: 'small' | 'medium' | 'large') => {
+    const { error } = await updatePreferences({ font_size: newSize });
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de sauvegarder la préférence de police",
+      });
+    } else {
+      toast({
+        title: "✅ Préférence sauvegardée",
+        description: "Taille de police mise à jour",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -105,7 +120,7 @@ export default function UserProfile() {
   };
 
   const getFontSizeClass = () => {
-    switch (fontSize) {
+    switch (profile?.font_size || 'medium') {
       case 'small': return 'text-sm';
       case 'large': return 'text-lg';
       default: return 'text-base';
@@ -150,23 +165,23 @@ export default function UserProfile() {
         <CardContent>
           <div className="flex space-x-2">
             <Button
-              variant={fontSize === 'small' ? 'default' : 'outline'}
+              variant={(profile?.font_size || 'medium') === 'small' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFontSize('small')}
+              onClick={() => handleFontSizeChange('small')}
             >
               Petit
             </Button>
             <Button
-              variant={fontSize === 'medium' ? 'default' : 'outline'}
+              variant={(profile?.font_size || 'medium') === 'medium' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFontSize('medium')}
+              onClick={() => handleFontSizeChange('medium')}
             >
               Moyen
             </Button>
             <Button
-              variant={fontSize === 'large' ? 'default' : 'outline'}
+              variant={(profile?.font_size || 'medium') === 'large' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFontSize('large')}
+              onClick={() => handleFontSizeChange('large')}
             >
               Grand
             </Button>

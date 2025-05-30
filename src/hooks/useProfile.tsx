@@ -76,11 +76,32 @@ export function useProfile() {
     }
   }, [user]);
 
+  // Fonction pour mettre à jour les préférences
+  const updatePreferences = async (preferences: { font_size?: string; preferred_address?: string }) => {
+    if (!user) return { error: 'Utilisateur non connecté' };
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          ...preferences,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour des préférences:', error);
+      return { error: error.message };
+    }
+  };
+
   // Ajouter la fonction refetch pour pouvoir actualiser les données du profil
   const refetch = () => {
     setLoading(true);
     fetchProfile();
   };
 
-  return { profile, loading, error, refetch };
+  return { profile, loading, error, refetch, updatePreferences };
 }
