@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -5,7 +6,7 @@ import { useAddress } from '@/hooks/useAddress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapPin, Plus, User, MessageSquare, ClipboardList, Home } from 'lucide-react';
+import { MapPin, Plus, User, MessageSquare, ClipboardList, Home, Phone, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ClientMissionsList from './ClientMissionsList';
 import UserProfile from './UserProfile';
@@ -44,6 +45,18 @@ export default function SimpleClientDashboard() {
     });
   };
 
+  const handleCall = () => {
+    // Fonctionnalité d'appel en développement
+    console.log('Appel en cours...');
+    // TODO: Implémenter la logique d'appel
+  };
+
+  const handleDescribeProblem = () => {
+    // Fonctionnalité de description vocale en développement
+    console.log('Description du problème...');
+    // TODO: Implémenter la reconnaissance vocale
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'missions':
@@ -68,6 +81,27 @@ export default function SimpleClientDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Boutons d'action rapide */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button 
+                onClick={handleCall}
+                variant="outline"
+                className="h-16 flex flex-col items-center justify-center space-y-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+              >
+                <Phone className="w-6 h-6" />
+                <span className="text-sm font-medium">Appeler</span>
+              </Button>
+              
+              <Button 
+                onClick={handleDescribeProblem}
+                variant="outline"
+                className="h-16 flex flex-col items-center justify-center space-y-2 text-green-600 border-green-200 hover:bg-green-50"
+              >
+                <Edit className="w-6 h-6" />
+                <span className="text-sm font-medium">Décrire</span>
+              </Button>
+            </div>
 
             {/* Section services populaires */}
             <div className="space-y-4">
